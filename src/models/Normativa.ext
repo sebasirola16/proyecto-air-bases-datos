@@ -23,3 +23,22 @@ Reglas de arquitectura:
 Estado:
 - Implementación básica en Sprint 2 (estructura y consultas).
 - Versionado y reformas se implementan en Sprint 3.
+
+-------------------------------------------------
+Soporte para Reportería (Sprint 2)
+-------------------------------------------------
+
+Consultas de apoyo:
+- obtenerListadoReglamentos()
+- contarElementosNormativosPorReglamento(id_reglamento)
+
+Descripción:
+Estas funciones permiten obtener información agregada
+sobre la normativa institucional sin aplicar lógica
+legal ni de certificación.
+
+Notas:
+- No se aplican filtros de quórum ni mayorías.
+- No se generan documentos.
+- El objetivo es permitir visualización básica
+  y validación de estructura de datos.
