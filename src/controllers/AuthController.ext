@@ -1,0 +1,9 @@
+CONTROLADOR: AuthController
+
+Responsabilidad:
+- Autenticación de usuarios
+- Asociación usuario–rol
+- Control de acceso
+
+Estado:
+- No implementado en Sprint 2

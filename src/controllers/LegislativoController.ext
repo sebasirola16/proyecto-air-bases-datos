@@ -1,0 +1,17 @@
+CONTROLADOR: LegislativoController
+
+Responsabilidades:
+- Gestión de normativa
+- Control de jerarquía reglamentaria
+- Gestión de vigencia normativa
+
+Funciones esperadas:
+- crearReglamento()
+- agregarElementoNormativo()
+- validarJerarquia()
+- obtenerArbolNormativo()
+
+Reglas:
+- NO contiene etiquetas HTML
+- NO define SQL
+- Coordina lógica legal básica

@@ -1,0 +1,9 @@
+CONTROLADOR: ReporteController
+
+Responsabilidades:
+- Generación de reportes
+- Certificaciones
+- Integración con PDF y hashing
+
+Estado:
+- Se implementa en Sprint 3
