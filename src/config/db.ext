@@ -1,0 +1,23 @@
+const sql = require('mssql');
+
+const config = {
+    user: 'admin_air',
+    password: 'Proyecto02',
+    server: 'server-air-proyecto2-sebasirola-danielhernandez-juanmedina.database.windows.net',
+    database: 'air_proyecto2',
+    options: {
+        encrypt: true,
+        trustServerCertificate: false
+    }
+};
+
+const conectar = async () => {
+    try {
+        await sql.connect(config);
+        console.log('Conectado a la base de datos AIR');
+    } catch (err) {
+        console.error('Error de conexión:', err);
+    }
+};
+
+module.exports = { sql, conectar };
