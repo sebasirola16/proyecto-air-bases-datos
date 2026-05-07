@@ -1,0 +1,29 @@
+CONFIGURACIÓN DE BASE DE DATOS
+=============================
+
+Archivo: db.ext
+Capa: Configuración
+
+Responsabilidad:
+- Centralizar los parámetros de conexión a la base de datos del sistema AIR.
+- Servir como único punto de referencia para la configuración del motor SQL.
+
+Motor de Base de Datos:
+- Azure SQL Database (SQL Server)
+
+Parámetros de conexión esperados:
+- servidor
+- base_datos
+- usuario
+- contraseña
+- puerto
+- opciones_ssl
+
+Reglas de arquitectura:
+- Este archivo NO ejecuta consultas SQL.
+- Este archivo NO contiene lógica de negocio.
+- Las consultas se realizan exclusivamente en la capa Model.
+
+Estado:
+- Placeholder en Sprint 2.
+- Implementación funcional en Sprint 3 mediante variables de entorno.
