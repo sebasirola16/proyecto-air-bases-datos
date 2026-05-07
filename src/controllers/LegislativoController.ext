@@ -1,17 +1,24 @@
 CONTROLADOR: LegislativoController
+===============================
+
+Capa: Controller
 
 Responsabilidades:
-- Gestión de normativa
-- Control de jerarquía reglamentaria
-- Gestión de vigencia normativa
+- Gestionar la carga y mantenimiento de normativa institucional.
+- Coordinar la creación de reglamentos y elementos normativos.
+- Validar la jerarquía legal de los elementos (padre-hijo).
+- Delegar totalmente la persistencia al modelo Normativa.
 
-Funciones esperadas:
-- crearReglamento()
-- agregarElementoNormativo()
-- validarJerarquia()
-- obtenerArbolNormativo()
+Funciones conceptuales:
+- registrarReglamento()
+- registrarElementoNormativo()
+- visualizarArbolNormativo()
 
-Reglas:
-- NO contiene etiquetas HTML
-- NO define SQL
-- Coordina lógica legal básica
+Reglas de arquitectura:
+- NO contiene consultas SQL.
+- NO contiene lógica de presentación (HTML).
+- Toda interacción con datos se delega al modelo.
+
+Estado:
+- Controlador funcional a nivel estructural en Sprint 2.
+- Lógica legal avanzada se implementa en Sprint 3.
