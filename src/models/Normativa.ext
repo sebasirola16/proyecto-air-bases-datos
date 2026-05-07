@@ -1,4 +1,25 @@
+MODELO: Normativa
+=================
+
+Capa: Model
+
 Responsabilidades:
-- Insertar elementos normativos
-- Resolver padres e hijos
-- Construir árbol jerárquico
+- Gestionar la creación y consulta de reglamentos institucionales.
+- Administrar la estructura jerárquica de los elementos normativos.
+- Resolver relaciones padre-hijo para construir el árbol reglamentario.
+- Validar vigencias temporales de los elementos normativos.
+
+Funciones conceptuales:
+- crearReglamento()
+- agregarElementoNormativo()
+- obtenerElementosPorReglamento()
+- construirArbolNormativo(id_reglamento)
+
+Reglas de arquitectura:
+- Este modelo es el ÚNICO lugar donde se realizan consultas SQL.
+- No contiene lógica de presentación.
+- No contiene lógica de control de acceso.
+
+Estado:
+- Implementación básica en Sprint 2 (estructura y consultas).
+- Versionado y reformas se implementan en Sprint 3.
