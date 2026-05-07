@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Registro de Asambleísta - AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #1a3a5c; }
+        h2 { color: #1a3a5c; margin-top: 30px; }
+        .form-grupo { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { padding: 8px; width: 350px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 4px; margin-right: 10px; }
+        .btn-guardar { background: #1a3a5c; color: white; }
+        .btn-volver { background: gray; color: white; }
+        .badge-activo { background: green; color: white; padding: 3px 8px; border-radius: 4px; }
+        .badge-concluido { background: gray; color: white; padding: 3px 8px; border-radius: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th { background-color: #1a3a5c; color: white; padding: 10px; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; }
+        .mensaje { padding: 10px; border-radius: 4px; margin-bottom: 15px; }
+        .exito { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+
+    <button class="btn btn-volver" onclick="window.location.href='asambleista-lista.view.html'">
+        ← Volver al listado
+    </button>
+
+    <h1 id="titulo">Nuevo Asambleísta</h1>
+
+    <div id="mensaje" style="display:none" class="mensaje"></div>
+
+    <!-- FORMULARIO DATOS PERSONALES -->
+    <div class="form-grupo">
+        <label>Cédula *</label>
+        <input type="text" id="cedula" placeholder="Ej: 1-2345-6789">
+    </div>
+    <div class="form-grupo">
+        <label>Nombre Completo *</label>
+        <input type="text" id="nombre" placeholder="Nombre completo">
+    </div>
+    <div class="form-grupo">
+        <label>Correo Institucional</label>
+        <input type="email" id="correo" placeholder="ejemplo@itcr.ac.cr">
+    </div>
+
+    <button class="btn btn-guardar" onclick="guardarAsambleista()">Guardar</button>
+
+    <!-- HISTORIAL DE NOMBRAMIENTOS -->
+    <h2>Historial de Nombramientos</h2>
+
+    <div class="form-grupo">
+        <label>Sector</label>
+        <select id="sector"></select>
+    </div>
+    <div class="form-grupo">
+        <label>Fecha Inicio</label>
+        <input type="date" id="fecha_inicio">
+    </div>
+
+    <button class="btn btn-guardar" onclick="registrarNombramiento()">+ Agregar Nombramiento</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Sector</th>
+                <th>Puesto</th>
+                <th>Fecha Inicio</th>
+                <th>Fecha Fin</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody id="nombramientos">
+            <!-- Se llena dinámicamente -->
+        </tbody>
+    </table>
+
+    <script>
+        let asambleista_id = null;
+
+        // Verificar si viene con cédula en la URL
+        const params = new URLSearchParams(window.location.search);
+        const cedula = params.get('cedula');
+
+        if (cedula) {
+            cargarAsambleista(cedula);
+        }
+
+        async function cargarAsambleista(ced) {
+            const res = await fetch(`/api/asambleistas/${ced}`);
+            const datos = await res.json();
+            document.getElementById('titulo').innerText = 'Detalle del Asambleísta';
+            document.getElementById('cedula').value = datos.cedula;
+            document.getElementById('cedula').disabled = true;
+            document.getElementById('nombre').value = datos.nombre;
+            document.getElementById('correo').value = datos.correo_institucional || '';
+            asambleista_id = datos.asambleista_id;
+            cargarNombramientos(asambleista_id);
+        }
+
+        async function cargarNombramientos(id) {
+            const res = await fetch(`/api/asambleistas/${id}/nombramientos`);
+            const datos = await res.json();
+            const tbody = document.getElementById('nombramientos');
+            tbody.innerHTML = '';
+            datos.forEach(n => {
+                const estado = n.estado === 'ACTIVO'
+                    ? '<span class="badge-activo">ACTIVO</span>'
+                    : '<span class="badge-concluido">CONCLUIDO</span>';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${n.sector}</td>
+                        <td>${n.puesto || '-'}</td>
+                        <td>${n.fecha_inicio}</td>
+                        <td>${n.fecha_fin || 'Vigente'}</td>
+                        <td>${estado}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function cargarSectores() {
+            const res = await fetch('/api/sectores');
+            const datos = await res.json();
+            const select = document.getElementById('sector');
+            datos.forEach(s => {
+                select.innerHTML += `<option value="${s.id_sector}">${s.nombre}</option>`;
+            });
+        }
+
+        async function guardarAsambleista() {
+            const cedula = document.getElementById('cedula').value;
+            const nombre = document.getElementById('nombre').value;
+            const correo = document.getElementById('correo').value;
+
+            const res = await fetch('/api/asambleistas', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cedula, nombre, correo })
+            });
+
+            const datos = await res.json();
+            mostrarMensaje(res.ok ? datos.mensaje : datos.error, res.ok);
+        }
+
+        async function registrarNombramiento() {
+            const sector_id = document.getElementById('sector').value;
+            const fecha_inicio = document.getElementById('fecha_inicio').value;
+
+            const res = await fetch('/api/nombramientos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ asambleista_id, sector_id, fecha_inicio })
+            });
+
+            const datos = await res.json();
+            mostrarMensaje(res.ok ? datos.mensaje : datos.error, res.ok);
+            if (res.ok) cargarNombramientos(asambleista_id);
+        }
+
+        function mostrarMensaje(texto, exito) {
+            const div = document.getElementById('mensaje');
+            div.style.display = 'block';
+            div.className = `mensaje ${exito ? 'exito' : 'error'}`;
+            div.innerText = texto;
+        }
+
+        cargarSectores();
+    </script>
+
+</body>
+</html>
