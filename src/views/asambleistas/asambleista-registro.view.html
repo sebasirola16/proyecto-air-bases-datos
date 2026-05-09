@@ -33,7 +33,6 @@
 
     <div id="mensaje" style="display:none" class="mensaje"></div>
 
-    <!-- FORMULARIO DATOS PERSONALES -->
     <div class="form-grupo">
         <label>Cédula *</label>
         <input type="text" id="cedula" placeholder="Ej: 1-2345-6789">
@@ -49,7 +48,6 @@
 
     <button class="btn btn-guardar" onclick="guardarAsambleista()">Guardar</button>
 
-    <!-- HISTORIAL DE NOMBRAMIENTOS -->
     <h2>Historial de Nombramientos</h2>
 
     <div class="form-grupo">
@@ -81,7 +79,6 @@
     <script>
         let asambleista_id = null;
 
-        // Verificar si viene con cédula en la URL
         const params = new URLSearchParams(window.location.search);
         const cedula = params.get('cedula');
 

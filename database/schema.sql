@@ -1,10 +1,9 @@
 -- ============================================================
--- PERSONA 1: Identidad Institucional
--- Issues #9 y #14 — Asambleístas y Nombramientos
+-- SCHEMA COMPLETO - SPRINT 2
 -- ============================================================
 
 -- ------------------------------------------------------------
--- CATÁLOGOS BASE
+-- CATÁLOGOS BASE - PERSONA 1
 -- ------------------------------------------------------------
 
 CREATE TABLE catalogo_sector (
@@ -20,7 +19,21 @@ CREATE TABLE catalogo_puestos (
 );
 
 -- ------------------------------------------------------------
--- ASAMBLEÍSTA
+-- CATÁLOGOS NORMATIVA - PERSONA 2
+-- ------------------------------------------------------------
+
+CREATE TABLE catalogo_nivel_reglamento (
+    id_nivel_reglamento INT IDENTITY PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE catalogo_estado_vigencia (
+    id_estado_vigencia INT IDENTITY PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- ------------------------------------------------------------
+-- ASAMBLEÍSTA - PERSONA 1
 -- ------------------------------------------------------------
 
 CREATE TABLE asambleista (
@@ -31,10 +44,6 @@ CREATE TABLE asambleista (
     activo               BIT NOT NULL DEFAULT 1,
     CONSTRAINT uq_asambleista_cedula UNIQUE (cedula)
 );
-
--- ------------------------------------------------------------
--- BITÁCORA DE CAMBIOS DEL ASAMBLEÍSTA
--- ------------------------------------------------------------
 
 CREATE TABLE bitacora_asambleistas (
     id_bitacora         INT IDENTITY(1,1) PRIMARY KEY,
@@ -47,10 +56,6 @@ CREATE TABLE bitacora_asambleistas (
         FOREIGN KEY (asambleista_id)
         REFERENCES asambleista(asambleista_id)
 );
-
--- ------------------------------------------------------------
--- NOMBRAMIENTO
--- ------------------------------------------------------------
 
 CREATE TABLE nombramiento (
     id_nombramiento     INT IDENTITY(1,1) PRIMARY KEY,
@@ -74,13 +79,51 @@ CREATE TABLE nombramiento (
         REFERENCES catalogo_puestos(id_puesto)
 );
 
--- Evita que un asambleísta tenga dos nombramientos ACTIVOS al mismo tiempo
 CREATE UNIQUE INDEX uix_nombramiento_activo_unico
     ON nombramiento (asambleista_id)
     WHERE estado = 'ACTIVO';
 
 -- ------------------------------------------------------------
--- DATOS SEMILLA
+-- NORMATIVA - PERSONA 2
+-- ------------------------------------------------------------
+
+CREATE TABLE reglamento (
+    id_reglamento INT IDENTITY PRIMARY KEY,
+    nombre_normativa VARCHAR(200) NOT NULL,
+    sigla VARCHAR(30) NOT NULL UNIQUE
+);
+
+CREATE TABLE elemento_normativo (
+    id_elemento INT IDENTITY PRIMARY KEY,
+    id_reglamento INT NOT NULL,
+    id_elemento_padre INT NULL,
+    id_nivel_reglamento INT NOT NULL,
+    numero_etiqueta VARCHAR(20),
+    contenido_texto TEXT NOT NULL,
+    orden INT NOT NULL,
+    fecha_inicio_vigencia DATE NOT NULL,
+    fecha_fin_vigencia DATE NULL,
+    id_estado_vigencia INT NOT NULL,
+    CONSTRAINT fk_elemento_reglamento
+        FOREIGN KEY (id_reglamento)
+        REFERENCES reglamento(id_reglamento),
+    CONSTRAINT fk_elemento_padre
+        FOREIGN KEY (id_elemento_padre)
+        REFERENCES elemento_normativo(id_elemento),
+    CONSTRAINT fk_elemento_nivel
+        FOREIGN KEY (id_nivel_reglamento)
+        REFERENCES catalogo_nivel_reglamento(id_nivel_reglamento),
+    CONSTRAINT fk_elemento_estado_vigencia
+        FOREIGN KEY (id_estado_vigencia)
+        REFERENCES catalogo_estado_vigencia(id_estado_vigencia)
+);
+
+CREATE UNIQUE INDEX ux_elemento_vigente
+    ON elemento_normativo (id_reglamento, numero_etiqueta)
+    WHERE fecha_fin_vigencia IS NULL;
+
+-- ------------------------------------------------------------
+-- DATOS SEMILLA - PERSONA 1
 -- ------------------------------------------------------------
 
 INSERT INTO catalogo_sector (nombre) VALUES

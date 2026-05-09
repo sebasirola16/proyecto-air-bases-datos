@@ -1,0 +1,28 @@
+CONTROLADOR: ReporteController
+==============================
+
+Capa: Controller
+
+Responsabilidad:
+- Centralizar la generación de reportes del sistema AIR.
+- Coordinar la obtención de información agregada desde los modelos.
+- Preparar puntos de extensión para exportación y certificación.
+
+Alcance en Sprint 2:
+- Reportes básicos de lectura.
+- Listado de reglamentos registrados.
+- Conteo simple de elementos normativos.
+
+Funciones conceptuales:
+- listarReglamentos()
+- obtenerConteoElementosPorReglamento()
+
+Reglas de arquitectura:
+- NO contiene consultas SQL.
+- NO genera documentos.
+- NO implementa exportaciones.
+- Delega totalmente el acceso a datos a la capa Model.
+
+Estado:
+- Implementación estructural en Sprint 2.
+- Reportería avanzada y exportaciones en Sprint 3.
