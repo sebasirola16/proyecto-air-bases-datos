@@ -1,0 +1,19 @@
+CONTROLADOR: AuthController
+==========================
+
+Capa: Controller
+
+Responsabilidad:
+- Gestionar la autenticación de usuarios del sistema AIR.
+- Controlar el acceso a funcionalidades según roles y permisos.
+- Coordinar futuras validaciones de seguridad y auditoría.
+
+Reglas de arquitectura:
+- El controlador NO contiene lógica de persistencia.
+- El controlador NO ejecuta consultas SQL.
+- El controlador NO contiene vistas ni etiquetas HTML.
+- Toda interacción con datos será delegada a la capa Model.
+
+Estado:
+- Controlador definido estructuralmente en Sprint 2.
+- Implementación funcional prevista para Sprint 3.

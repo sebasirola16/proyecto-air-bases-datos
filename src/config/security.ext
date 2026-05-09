@@ -1,0 +1,26 @@
+CONFIGURACIÓN DE SEGURIDAD
+=========================
+
+Archivo: security.ext
+Capa: Configuración
+
+Responsabilidad:
+- Definir el marco de seguridad institucional del sistema AIR.
+- Declarar roles, permisos y lineamientos de acceso.
+
+Roles institucionales previstos:
+- ADMINISTRADOR
+- SECRETARIA
+- CONSULTA
+
+Reglas:
+- La autenticación y autorización funcional se implementan en Sprint 3.
+- En Sprint 2 solo se establece la estructura conceptual.
+
+Auditoría:
+- Todas las acciones críticas del sistema deberán registrarse en bitácoras.
+- La implementación de auditoría se realizará en fases posteriores.
+
+Estado:
+- Archivo estructural (placeholder) en Sprint 2.
+- Contenido detallado y políticas específicas se desarrollarán en Sprint 3.

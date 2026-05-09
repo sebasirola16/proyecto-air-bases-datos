@@ -42,7 +42,6 @@
     </table>
 
     <script>
-        // Cargar asambleistas al abrir la página
         async function cargarAsambleistas() {
             const res = await fetch('/api/asambleistas');
             const datos = await res.json();

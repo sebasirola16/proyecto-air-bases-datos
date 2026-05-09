@@ -1,10 +1,10 @@
 const sql = require('mssql');
 
 const config = {
-    user: 'admin_air',
-    password: 'Proyecto02',
-    server: 'server-air-proyecto2-sebasirola-danielhernandez-juanmedina.database.windows.net',
-    database: 'air_proyecto2',
+    user: process.env.DB_USER || 'admin_air',
+    password: process.env.DB_PASSWORD || 'Proyecto02',
+    server: process.env.DB_SERVER || 'server-air-proyecto2-sebasirola-danielhernandez-juanmedina.database.windows.net',
+    database: process.env.DB_NAME || 'air_proyecto2',
     options: {
         encrypt: true,
         trustServerCertificate: false
