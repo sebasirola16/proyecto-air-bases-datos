@@ -1,3 +1,48 @@
 Responsabilidades:
 - Registrar nombramientos
 - Controlar fechas sin traslape
+
+CONSULTAS IMPLEMENTADAS:
+------------------------
+
+[1] obtenerNombramientosVigentes()
+Propósito: Listar todos los asambleístas con nombramiento activo 
+           a la fecha actual.
+
+SELECT 
+    a.cedula,
+    a.nombre,
+    cs.nombre        AS sector,
+    cp.nombre_puesto AS puesto,
+    n.fecha_inicio,
+    n.fecha_fin
+FROM nombramiento n
+JOIN asambleista a 
+    ON n.asambleista_id = a.asambleista_id
+JOIN catalogo_sector cs 
+    ON n.sector_id = cs.id_sector
+JOIN catalogo_puestos cp 
+    ON n.id_puesto = cp.id_puesto
+WHERE n.estado = 'activo'
+  AND n.fecha_inicio <= GETDATE()
+  AND (n.fecha_fin IS NULL OR n.fecha_fin >= GETDATE())
+
+
+[2] obtenerHistorialNombramientos(asambleista_id)
+Propósito: Ver todos los periodos históricos de un asambleísta,
+           incluyendo los ya finalizados.
+
+SELECT 
+    n.id_nombramiento,
+    cs.nombre        AS sector,
+    cp.nombre_puesto AS puesto,
+    n.fecha_inicio,
+    n.fecha_fin,
+    n.estado
+FROM nombramiento n
+JOIN catalogo_sector cs 
+    ON n.sector_id = cs.id_sector
+JOIN catalogo_puestos cp 
+    ON n.id_puesto = cp.id_puesto
+WHERE n.asambleista_id = @asambleista_id
+ORDER BY n.fecha_inicio DESC

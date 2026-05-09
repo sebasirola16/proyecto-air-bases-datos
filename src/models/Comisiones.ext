@@ -1,0 +1,92 @@
+MODELO: Comision
+================
+
+Capa: Model
+Responsable: Daniel
+Issue: #7 - Comisiones (estructura Sprint 2)
+
+Responsabilidades:
+- Consultar integrantes de una comisión.
+- Listar comisiones activas del sistema.
+- Vincular comisiones con propuestas e informes del Directorio.
+- Registrar asistencia a sesiones de comisión.
+
+[1] obtenerIntegrantesPorComision(id_comision)
+Propósito: Listar todos los integrantes activos de una comisión
+           con su rol y datos del asambleísta.
+
+SELECT 
+    a.cedula,
+    a.nombre,
+    cr.nombre_rol       AS rol_en_comision,
+    ic.fecha_ingreso_nombramiento,
+    ic.fecha_fin_nombramiento,
+    ic.estado
+FROM integrante_comision ic
+JOIN asambleista a 
+    ON ic.id_asambleista = a.asambleista_id
+JOIN catalogo_rol_comision cr 
+    ON ic.id_rol_comision = cr.id_rol_comision
+WHERE ic.id_comision = @id_comision
+  AND ic.estado = 'activo'
+ORDER BY a.nombre ASC
+
+
+[2] obtenerComisionesPorAsambleista(asambleista_id)
+Propósito: Ver en qué comisiones ha participado un asambleísta,
+           incluyendo historial completo. Necesario para certificaciones.
+
+SELECT 
+    c.nombre_comision,
+    ct.nombre           AS tipo_comision,
+    ic.fecha_ingreso_nombramiento,
+    ic.fecha_fin_nombramiento,
+    ic.estado
+FROM integrante_comision ic
+JOIN comision c 
+    ON ic.id_comision = c.id_comision
+JOIN catalogo_tipo_comision ct 
+    ON c.id_tipo_comision = ct.id_tipo_comision
+WHERE ic.id_asambleista = @asambleista_id
+ORDER BY ic.fecha_ingreso_nombramiento DESC
+
+
+[3] obtenerAsistenciaSesionesComision(asambleista_id, id_comision)
+Propósito: Calcular el porcentaje de asistencia de un asambleísta
+           en las sesiones de una comisión específica.
+           Necesario para certificar "participación activa".
+
+SELECT 
+    COUNT(sc.id_sesion_comision)            AS total_sesiones,
+    SUM(CASE WHEN asc2.id_estado_asistencia = 1 
+             THEN 1 ELSE 0 END)             AS sesiones_asistidas,
+    CAST(
+        SUM(CASE WHEN asc2.id_estado_asistencia = 1 
+                 THEN 1 ELSE 0 END) * 100.0 
+        / COUNT(sc.id_sesion_comision) 
+    AS DECIMAL(5,2))                        AS porcentaje_asistencia
+FROM sesion_comision sc
+LEFT JOIN asistencia_sesion_comision asc2 
+    ON sc.id_sesion_comision = asc2.id_sesion_comision
+   AND asc2.asambleista_id = @asambleista_id
+WHERE sc.id_comision = @id_comision
+
+
+[4] obtenerInformesDirectorioPorComision(id_comision)
+Propósito: Listar los informes que una comisión presentó
+           al Directorio vinculados a sus propuestas.
+
+SELECT 
+    id.id_informe,
+    id.recomendacion,
+    id.fecha_presentacion,
+    id.id_propuesta
+FROM informe_directorio id
+WHERE id.id_comision = @id_comision
+ORDER BY id.fecha_presentacion DESC
+
+
+Estado:
+- Sprint 2: Estructura y consultas planificadas.
+- Sprint 3: Implementación funcional cuando las 
+            tablas sean creadas por Issue #11.
