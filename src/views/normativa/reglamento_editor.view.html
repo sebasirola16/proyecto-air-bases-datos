@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor Normativo - Sistema AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        h1 { color: #2c3e50; }
+        .card {
+            background: white; border-radius: 8px;
+            padding: 24px; margin-top: 16px;
+            border: 1px solid #ddd; max-width: 700px;
+        }
+        label { display: block; margin-top: 12px; font-weight: bold; color: #2c3e50; }
+        input, select, textarea {
+            width: 100%; padding: 8px 10px; margin-top: 4px;
+            border: 1px solid #ccc; border-radius: 4px;
+            font-size: 14px; box-sizing: border-box;
+        }
+        textarea { height: 120px; resize: vertical; }
+        .botones { margin-top: 20px; display: flex; gap: 10px; }
+        button {
+            padding: 10px 20px; border: none;
+            border-radius: 4px; cursor: pointer;
+            font-size: 14px; font-weight: bold;
+        }
+        .btn-primary { background: #2c3e50; color: white; }
+        .btn-primary:hover { background: #34495e; }
+        .btn-version { background: #27ae60; color: white; }
+        .btn-version:hover { background: #219a52; }
+        .btn-secondary { background: #95a5a6; color: white; }
+        .btn-secondary:hover { background: #7f8c8d; }
+
+        /* Notificaciones */
+        .notif {
+            padding: 12px 16px; border-radius: 6px;
+            margin-top: 16px; display: none; font-weight: bold;
+        }
+        .notif-exito { background: #d4edda; color: #155724; display: block; }
+        .notif-error { background: #f8d7da; color: #721c24; display: block; }
+    </style>
+</head>
+<body>
+
+<h1>✏️ Editor Normativo</h1>
+<p><a href="reglamento-arbol.view.html">← Volver al árbol</a></p>
+
+<!-- Sección: Nuevo Reglamento -->
+<div class="card">
+    <h2>📁 Crear Reglamento</h2>
+    <label for="nombreReglamento">Nombre del reglamento</label>
+    <input type="text" id="nombreReglamento" placeholder="Ej: Reglamento General del TEC" />
+
+    <label for="siglaReglamento">Sigla</label>
+    <input type="text" id="siglaReglamento" placeholder="Ej: RG-TEC" />
+
+    <div class="botones">
+        <button class="btn-primary" onclick="crearReglamento()">Crear reglamento</button>
+    </div>
+    <div id="notif-reglamento" class="notif"></div>
+</div>
+
+<!-- Sección: Agregar Elemento / Publicar Versión -->
+<div class="card">
+    <h2>📄 Agregar Elemento Normativo</h2>
+
+    <label for="selectReglamentoEditor">Reglamento</label>
+    <select id="selectReglamentoEditor">
+        <option value="">-- Seleccione --</option>
+    </select>
+
+    <label for="selectNivel">Nivel</label>
+    <select id="selectNivel">
+        <option value="">-- Seleccione --</option>
+    </select>
+
+    <label for="selectPadre">Elemento padre (opcional)</label>
+    <select id="selectPadre">
+        <option value="">-- Sin padre (nivel raíz) --</option>
+    </select>
+
+    <label for="etiqueta">Número / Etiqueta</label>
+    <input type="text" id="etiqueta" placeholder="Ej: Título I, Capítulo 2, Art. 5" />
+
+    <label for="contenido">Contenido del elemento</label>
+    <textarea id="contenido" placeholder="Escriba el texto del artículo, inciso, etc."></textarea>
+
+    <label for="orden">Orden</label>
+    <input type="number" id="orden" placeholder="Ej: 1" min="1" />
+
+    <label for="fechaInicio">Fecha inicio vigencia</label>
+    <input type="date" id="fechaInicio" />
+
+    <label for="selectEstado">Estado de vigencia</label>
+    <select id="selectEstado">
+        <option value="">-- Seleccione --</option>
+    </select>
+
+    <div class="botones">
+        <button class="btn-primary" onclick="agregarElemento()">Agregar elemento</button>
+        <button class="btn-version" onclick="publicarVersion()">🔄 Publicar nueva versión</button>
+        <button class="btn-secondary" onclick="window.location.href='reglamento-arbol.view.html'">Cancelar</button>
+    </div>
+    <div id="notif-elemento" class="notif"></div>
+</div>
+
+<script>
+    const TOKEN = localStorage.getItem('token') || '';
+
+    // Mostrar notificación
+    function mostrarNotif(id, mensaje, esError = false) {
+        const el = document.getElementById(id);
+        el.textContent = mensaje;
+        el.className = 'notif ' + (esError ? 'notif-error' : 'notif-exito');
+        setTimeout(() => { el.className = 'notif'; }, 4000);
+    }
+
+    // Cargar reglamentos
+    async function cargarReglamentos() {
+        try {
+            const res = await fetch('/api/reglamentos', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            const select = document.getElementById('selectReglamentoEditor');
+            data.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id_reglamento;
+                opt.textContent = `${r.sigla} - ${r.nombre_normativa}`;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('Error cargando reglamentos:', err);
+        }
+    }
+
+    // Cargar niveles
+    async function cargarNiveles() {
+        try {
+            const res = await fetch('/api/normativa/niveles', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            const select = document.getElementById('selectNivel');
+            data.forEach(n => {
+                const opt = document.createElement('option');
+                opt.value = n.id_nivel_reglamento;
+                opt.textContent = n.nombre;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('Error cargando niveles:', err);
+        }
+    }
+
+    // Cargar estados de vigencia
+    async function cargarEstados() {
+        try {
+            const res = await fetch('/api/normativa/estados', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            const select = document.getElementById('selectEstado');
+            data.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.id_estado_vigencia;
+                opt.textContent = e.nombre;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('Error cargando estados:', err);
+        }
+    }
+
+    // Cargar elementos padre cuando cambia el reglamento
+    document.getElementById('selectReglamentoEditor').addEventListener('change', async function () {
+        const id = this.value;
+        const selectPadre = document.getElementById('selectPadre');
+        selectPadre.innerHTML = '<option value="">-- Sin padre (nivel raíz) --</option>';
+        if (!id) return;
+
+        try {
+            const res = await fetch(`/api/reglamentos/${id}/arbol`, {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            data.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.id_elemento;
+                opt.textContent = `${e.nivel} ${e.numero_etiqueta || ''} - ${e.contenido_texto.substring(0, 50)}`;
+                selectPadre.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('Error cargando elementos padre:', err);
+        }
+    });
+
+    // Crear reglamento
+    async function crearReglamento() {
+        const nombre_normativa = document.getElementById('nombreReglamento').value.trim();
+        const sigla = document.getElementById('siglaReglamento').value.trim();
+        if (!nombre_normativa || !sigla) {
+            return mostrarNotif('notif-reglamento', 'Complete todos los campos', true);
+        }
+
+        try {
+            const res = await fetch('/api/reglamentos', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + TOKEN
+                },
+                body: JSON.stringify({ nombre_normativa, sigla })
+            });
+            const data = await res.json();
+            if (!res.ok) return mostrarNotif('notif-reglamento', data.error, true);
+            mostrarNotif('notif-reglamento', '✅ Reglamento creado correctamente');
+            cargarReglamentos();
+        } catch (err) {
+            mostrarNotif('notif-reglamento', 'Error al crear reglamento', true);
+        }
+    }
+
+    // Agregar elemento
+    async function agregarElemento() {
+        const id = document.getElementById('selectReglamentoEditor').value;
+        if (!id) return mostrarNotif('notif-elemento', 'Seleccione un reglamento', true);
+
+        const body = obtenerDatosFormulario();
+        if (!body) return;
+
+        try {
+            const res = await fetch(`/api/reglamentos/${id}/elementos`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + TOKEN
+                },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok) return mostrarNotif('notif-elemento', data.error, true);
+            mostrarNotif('notif-elemento', '✅ Elemento agregado correctamente');
+            limpiarFormulario();
+        } catch (err) {
+            mostrarNotif('notif-elemento', 'Error al agregar elemento', true);
+        }
+    }
+
+    // Publicar nueva versión
+    async function publicarVersion() {
+        const id = document.getElementById('selectReglamentoEditor').value;
+        if (!id) return mostrarNotif('notif-elemento', 'Seleccione un reglamento', true);
+
+        const body = obtenerDatosFormulario(true);
+        if (!body) return;
+
+        try {
+            const res = await fetch(`/api/reglamentos/${id}/version`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + TOKEN
+                },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            if (!res.ok) return mostrarNotif('notif-elemento', data.error, true);
+            mostrarNotif('notif-elemento', '✅ Nueva versión publicada. La anterior quedó como histórica.');
+            limpiarFormulario();
+        } catch (err) {
+            mostrarNotif('notif-elemento', 'Error al publicar versión', true);
+        }
+    }
+
+    // Obtener datos del formulario
+    function obtenerDatosFormulario(esVersion = false) {
+        const id_nivel_reglamento = document.getElementById('selectNivel').value;
+        const contenido_texto = document.getElementById('contenido').value.trim();
+        const orden = document.getElementById('orden').value;
+        const id_estado_vigencia = document.getElementById('selectEstado').value;
+        const id_elemento_padre = document.getElementById('selectPadre').value || null;
+        const numero_etiqueta = document.getElementById('etiqueta').value.trim();
+
+        if (!id_nivel_reglamento || !contenido_texto || !orden || !id_estado_vigencia) {
+            mostrarNotif('notif-elemento', 'Complete todos los campos obligatorios', true);
+            return null;
+        }
+
+        const datos = { id_elemento_padre, id_nivel_reglamento, numero_etiqueta, contenido_texto, orden: parseInt(orden), id_estado_vigencia };
+        if (!esVersion) datos.fecha_inicio_vigencia = document.getElementById('fechaInicio').value;
+        return datos;
+    }
+
+    // Limpiar formulario
+    function limpiarFormulario() {
+        ['etiqueta', 'contenido', 'orden', 'fechaInicio'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+    }
+
+    // Iniciar
+    cargarReglamentos();
+    cargarNiveles();
+    cargarEstados();
+</script>
+
+</body>
+</html>
