@@ -34,7 +34,7 @@
     <div id="mensaje" style="display:none" class="mensaje"></div>
 
     <div class="form-grupo">
-        <label>Cédula *</label>
+        <label>Cédula * (formato: 1-2345-6789)</label>
         <input type="text" id="cedula" placeholder="Ej: 1-2345-6789">
     </div>
     <div class="form-grupo">
@@ -42,7 +42,7 @@
         <input type="text" id="nombre" placeholder="Nombre completo">
     </div>
     <div class="form-grupo">
-        <label>Correo Institucional</label>
+        <label>Correo Institucional (@itcr.ac.cr / @estudiantec.cr)</label>
         <input type="email" id="correo" placeholder="ejemplo@itcr.ac.cr">
     </div>
 
@@ -140,7 +140,11 @@
             });
 
             const datos = await res.json();
-            mostrarMensaje(res.ok ? datos.mensaje : datos.error, res.ok);
+            if (!res.ok) {
+                mostrarMensaje(`Error: ${datos.error || 'No se pudo registrar el asambleísta'}`, false);
+            } else {
+                mostrarMensaje(datos.mensaje, true);
+            }
         }
 
         async function registrarNombramiento() {
@@ -154,8 +158,12 @@
             });
 
             const datos = await res.json();
-            mostrarMensaje(res.ok ? datos.mensaje : datos.error, res.ok);
-            if (res.ok) cargarNombramientos(asambleista_id);
+            if (!res.ok) {
+                mostrarMensaje(`Error: ${datos.error || 'No se pudo registrar el nombramiento'}`, false);
+            } else {
+                mostrarMensaje(datos.mensaje, true);
+                cargarNombramientos(asambleista_id);
+            }
         }
 
         function mostrarMensaje(texto, exito) {
@@ -163,6 +171,9 @@
             div.style.display = 'block';
             div.className = `mensaje ${exito ? 'exito' : 'error'}`;
             div.innerText = texto;
+            if (exito) {
+                setTimeout(() => { div.style.display = 'none'; }, 5000);
+            }
         }
 
         cargarSectores();
