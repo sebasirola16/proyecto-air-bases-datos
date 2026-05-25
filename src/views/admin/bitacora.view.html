@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Bitácora de Auditoría - AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #1a3a5c; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th { background-color: #1a3a5c; color: white; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #ddd; font-size: 13px; }
+        .filtros { margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        input, select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; }
+        .btn-buscar { background: #1a3a5c; color: white; }
+        .badge-insert { background: #28a745; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-update { background: #ffc107; color: black; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-delete { background: #dc3545; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .no-datos { text-align: center; padding: 30px; color: #666; }
+    </style>
+</head>
+<body>
+
+    <h1>Bitácora de Auditoría</h1>
+
+    <div class="filtros">
+        <input type="date" id="fechaDesde" title="Desde">
+        <input type="date" id="fechaHasta" title="Hasta">
+        <select id="filtroAccion">
+            <option value="">Todas las acciones</option>
+            <option value="INSERT">INSERT</option>
+            <option value="UPDATE">UPDATE</option>
+            <option value="DELETE">DELETE</option>
+        </select>
+        <button class="btn btn-buscar" onclick="cargarBitacora()">Buscar</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha y Hora</th>
+                <th>Usuario</th>
+                <th>Acción</th>
+                <th>Tabla Afectada</th>
+                <th>Detalle</th>
+            </tr>
+        </thead>
+        <tbody id="cuerpo">
+            <!-- Se llena dinámicamente -->
+        </tbody>
+    </table>
+
+    <script>
+        async function cargarBitacora() {
+            const fechaDesde = document.getElementById('fechaDesde').value;
+            const fechaHasta = document.getElementById('fechaHasta').value;
+            const accion = document.getElementById('filtroAccion').value;
+
+            let url = '/api/admin/bitacora?';
+            if (fechaDesde) url += `desde=${fechaDesde}&`;
+            if (fechaHasta) url += `hasta=${fechaHasta}&`;
+            if (accion) url += `accion=${accion}`;
+
+            try {
+                const res = await fetch(url);
+                const datos = await res.json();
+                const cuerpo = document.getElementById('cuerpo');
+                cuerpo.innerHTML = '';
+
+                if (datos.length === 0) {
+                    cuerpo.innerHTML = `<tr><td colspan="5" class="no-datos">No hay registros para mostrar</td></tr>`;
+                    return;
+                }
+
+                datos.forEach(log => {
+                    const accionBadge = log.accion === 'INSERT'
+                        ? `<span class="badge-insert">INSERT</span>`
+                        : log.accion === 'UPDATE'
+                        ? `<span class="badge-update">UPDATE</span>`
+                        : `<span class="badge-delete">DELETE</span>`;
+
+                    const fecha = new Date(log.fecha_hora).toLocaleString('es-CR');
+
+                    cuerpo.innerHTML += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td>${log.id_usuario || 'Sistema'}</td>
+                            <td>${accionBadge}</td>
+                            <td>${log.tabla_afectada}</td>
+                            <td>${log.detalle || '-'}</td>
+                        </tr>
+                    `;
+                });
+            } catch (err) {
+                console.error('Error al cargar bitácora:', err);
+            }
+        }
+
+        cargarBitacora();
+    </script>
+
+</body>
+</html>

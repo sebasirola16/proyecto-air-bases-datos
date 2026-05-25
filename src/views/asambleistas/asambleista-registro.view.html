@@ -34,7 +34,11 @@
     <div id="mensaje" style="display:none" class="mensaje"></div>
 
     <div class="form-grupo">
+<<<<<<< HEAD
         <label>Cédula *</label>
+=======
+        <label>Cédula * (formato: 1-2345-6789)</label>
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         <input type="text" id="cedula" placeholder="Ej: 1-2345-6789">
     </div>
     <div class="form-grupo">
@@ -42,7 +46,11 @@
         <input type="text" id="nombre" placeholder="Nombre completo">
     </div>
     <div class="form-grupo">
+<<<<<<< HEAD
         <label>Correo Institucional</label>
+=======
+        <label>Correo Institucional (@itcr.ac.cr / @estudiantec.cr)</label>
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         <input type="email" id="correo" placeholder="ejemplo@itcr.ac.cr">
     </div>
 
@@ -140,7 +148,15 @@
             });
 
             const datos = await res.json();
+<<<<<<< HEAD
             mostrarMensaje(res.ok ? datos.mensaje : datos.error, res.ok);
+=======
+            if (!res.ok) {
+                mostrarMensaje(`Error: ${datos.error || 'No se pudo registrar el asambleísta'}`, false);
+            } else {
+                mostrarMensaje(datos.mensaje, true);
+            }
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         }
 
         async function registrarNombramiento() {
@@ -154,8 +170,17 @@
             });
 
             const datos = await res.json();
+<<<<<<< HEAD
             mostrarMensaje(res.ok ? datos.mensaje : datos.error, res.ok);
             if (res.ok) cargarNombramientos(asambleista_id);
+=======
+            if (!res.ok) {
+                mostrarMensaje(`Error: ${datos.error || 'No se pudo registrar el nombramiento'}`, false);
+            } else {
+                mostrarMensaje(datos.mensaje, true);
+                cargarNombramientos(asambleista_id);
+            }
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         }
 
         function mostrarMensaje(texto, exito) {
@@ -163,6 +188,12 @@
             div.style.display = 'block';
             div.className = `mensaje ${exito ? 'exito' : 'error'}`;
             div.innerText = texto;
+<<<<<<< HEAD
+=======
+            if (exito) {
+                setTimeout(() => { div.style.display = 'none'; }, 5000);
+            }
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         }
 
         cargarSectores();

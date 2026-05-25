@@ -30,11 +30,32 @@ const registrarAsambleista = async (req, res) => {
     try {
         const { cedula, nombre, correo } = req.body;
 
+<<<<<<< HEAD
         // Validar cedula
+=======
+        // Validar campos obligatorios
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         if (!cedula || !nombre) {
             return res.status(400).json({ error: 'Cedula y nombre son obligatorios' });
         }
 
+<<<<<<< HEAD
+=======
+        // Validar formato cédula (ej: 1-2345-6789)
+        const regexCedula = /^\d{1}-\d{4}-\d{4}$/;
+        if (!regexCedula.test(cedula)) {
+            return res.status(400).json({ error: 'Formato de cédula inválido. Use el formato: 1-2345-6789' });
+        }
+
+        // Validar formato correo institucional
+        if (correo) {
+            const regexCorreo = /^[a-zA-Z0-9._%+-]+@(estudiantec\.cr|itcr\.ac\.cr|tec\.ac\.cr)$/;
+            if (!regexCorreo.test(correo)) {
+                return res.status(400).json({ error: 'El correo debe ser institucional (@estudiantec.cr, @itcr.ac.cr o @tec.ac.cr)' });
+            }
+        }
+
+>>>>>>> 88e9f5bd7826918197bf46c82d1282778e5758af
         // Verificar si ya existe
         const existe = await Asambleista.obtenerPorCedula(cedula);
         if (existe) {

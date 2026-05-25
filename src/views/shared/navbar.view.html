@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .navbar {
+            background-color: #1a3a5c;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .navbar-brand {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .navbar-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 6px 12px;
+            border-radius: 4px;
+        }
+        .navbar-links a:hover {
+            background-color: #2a5a8c;
+        }
+        .navbar-user {
+            color: white;
+            font-size: 14px;
+        }
+        .btn-logout {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <a class="navbar-brand" href="#">AIR - Sistema de Gestión</a>
+    <div class="navbar-links" id="navLinks">
+        <!-- Se llena según el rol -->
+    </div>
+    <div class="navbar-user">
+        <span id="usuarioNombre"></span>
+        <button class="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+</nav>
+
+<script>
+    function cargarNavbar() {
+        const usuario = JSON.parse(sessionStorage.getItem('usuario') || '{}');
+        const rol = usuario.rol || '';
+        const nombre = usuario.username || 'Usuario';
+
+        document.getElementById('usuarioNombre').innerText = nombre;
+
+        const links = document.getElementById('navLinks');
+        links.innerHTML = '';
+
+        // Links disponibles para todos
+        links.innerHTML += `<a href="/asambleistas">Asambleístas</a>`;
+        links.innerHTML += `<a href="/normativa">Normativa</a>`;
+
+        // Solo admin ve el panel de administración
+        if (rol === 'Administrador') {
+            links.innerHTML += `<a href="/admin/usuarios">Admin</a>`;
+            links.innerHTML += `<a href="/admin/bitacora">Bitácora</a>`;
+        }
+    }
+
+    function cerrarSesion() {
+        sessionStorage.removeItem('usuario');
+        window.location.href = '/login';
+    }
+
+    cargarNavbar();
+</script>
+
+</body>
+</html>
