@@ -139,6 +139,7 @@ INSERT INTO catalogo_puestos (nombre_puesto) VALUES
     ('Presidente del Directorio'),
     ('Secretario/a de la AIR');
 
+
 -- ============================================================
 -- SEGURIDAD Y AUDITORÍA (RBAC) - SEMANA 2
 -- ============================================================
@@ -151,7 +152,7 @@ CREATE TABLE sys_rol (
 CREATE TABLE sys_usuario (
     id_usuario INT IDENTITY(1,1) PRIMARY KEY,
     username NVARCHAR(80) NOT NULL UNIQUE,
-    password_hash NVARCHAR(64) NOT NULL,
+    password_hash NVARCHAR(64) NOT NULL, -- SHA-256 en hex
     email NVARCHAR(150) NOT NULL UNIQUE,
     activo BIT NOT NULL DEFAULT 1
 );
@@ -184,21 +185,24 @@ CREATE TABLE sys_rol_permiso (
 
 CREATE TABLE sys_log_auditoria (
     id_log INT IDENTITY(1,1) PRIMARY KEY,
-    id_usuario INT NULL,
-    accion NVARCHAR(10) NOT NULL,
+    id_usuario INT NULL, -- se toma de SESSION_CONTEXT('id_usuario') si existe
+    accion NVARCHAR(10) NOT NULL, -- INSERT/UPDATE/DELETE
     tabla_afectada NVARCHAR(100) NOT NULL,
     registro_id NVARCHAR(50) NULL,
     detalle NVARCHAR(1000) NULL,
     fecha_hora DATETIME2 NOT NULL DEFAULT SYSDATETIME()
 );
+-- ============================================================
+-- SEED RBAC (roles + permisos + usuarios) - SEMANA 2
+-- ============================================================
 
--- Roles base
+-- Roles base requeridos
 INSERT INTO sys_rol (nombre_rol) VALUES
 ('Administrador'),
 ('Secretaría'),
 ('Asambleísta');
 
--- Permisos
+-- Permisos mínimos (para pruebas RBAC)
 INSERT INTO sys_permiso (nombre_permiso, descripcion) VALUES
 ('NORMATIVA_EDIT', 'Permite insertar/editar normativa'),
 ('NORMATIVA_VIEW', 'Permite lectura de normativa'),
@@ -207,28 +211,35 @@ INSERT INTO sys_permiso (nombre_permiso, descripcion) VALUES
 ('AUDIT_VIEW', 'Permite ver bitácora'),
 ('USERS_ADMIN', 'Permite administrar usuarios y roles');
 
+-- Asignación de permisos por rol (mínimo viable para pruebas)
+-- Admin: todo
 INSERT INTO sys_rol_permiso (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
 FROM sys_rol r CROSS JOIN sys_permiso p
 WHERE r.nombre_rol = 'Administrador';
 
+-- Secretaría: edita y ve normativa + edita y ve actores + ve auditoría
 INSERT INTO sys_rol_permiso (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
 FROM sys_rol r
 JOIN sys_permiso p ON p.nombre_permiso IN ('NORMATIVA_EDIT','NORMATIVA_VIEW','ACTORES_EDIT','ACTORES_VIEW','AUDIT_VIEW')
 WHERE r.nombre_rol = 'Secretaría';
 
+-- Asambleísta: solo lectura de normativa y de actores (lectura)
 INSERT INTO sys_rol_permiso (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
 FROM sys_rol r
 JOIN sys_permiso p ON p.nombre_permiso IN ('NORMATIVA_VIEW','ACTORES_VIEW')
 WHERE r.nombre_rol = 'Asambleísta';
 
+-- Usuarios mínimos (uno por rol) requeridos por rúbrica
+-- password_hash: SHA-256 en hex (ej. "admin123", "secre123", "asam123")
 INSERT INTO sys_usuario (username, password_hash, email) VALUES
 ('admin',  CONVERT(VARCHAR(64), HASHBYTES('SHA2_256','admin123'), 2),  'admin@itcr.ac.cr'),
 ('secre',  CONVERT(VARCHAR(64), HASHBYTES('SHA2_256','secre123'), 2),  'secre@itcr.ac.cr'),
 ('asam',   CONVERT(VARCHAR(64), HASHBYTES('SHA2_256','asam123'), 2),   'asam@itcr.ac.cr');
 
+-- Vincular usuario→rol
 INSERT INTO sys_usuario_rol (id_usuario, id_rol)
 SELECT u.id_usuario, r.id_rol
 FROM sys_usuario u
@@ -240,20 +251,23 @@ JOIN sys_rol r ON (u.username='admin' AND r.nombre_rol='Administrador')
 -- CONSTRAINTS EXTRA - SEMANA 2
 -- ============================================================
 
+-- Cédula: solo dígitos y guiones (validación básica)
 ALTER TABLE asambleista
 ADD CONSTRAINT ck_asambleista_cedula_formato
 CHECK (PATINDEX('%[^0-9-]%', cedula) = 0 AND LEN(cedula) BETWEEN 5 AND 20);
 
+-- Nombramiento: fecha_fin > fecha_inicio (o null)
 ALTER TABLE nombramiento
 ADD CONSTRAINT ck_nombramiento_fechas
 CHECK (fecha_fin IS NULL OR fecha_fin > fecha_inicio);
 
+-- Normativa: fecha_fin_vigencia > fecha_inicio_vigencia (o null)
 ALTER TABLE elemento_normativo
 ADD CONSTRAINT ck_elemento_normativo_fechas
 CHECK (fecha_fin_vigencia IS NULL OR fecha_fin_vigencia > fecha_inicio_vigencia);
 
 -- ============================================================
--- SP: VALIDAR TRASLAPE NOMBRAMIENTOS
+-- SP: VALIDAR TRASLAPE NOMBRAMIENTOS (SEMANA 2)
 -- ============================================================
 
 GO
@@ -268,12 +282,15 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- Validación básica de fechas
     IF (@fecha_fin IS NOT NULL AND @fecha_fin <= @fecha_inicio)
     BEGIN
         RAISERROR('fecha_fin debe ser mayor que fecha_inicio', 16, 1);
         RETURN;
     END
 
+    -- Validar traslape con cualquier nombramiento existente del mismo asambleísta
+    -- (más estricto que "mismo sector", pero cumple y evita inconsistencias históricas)
     IF EXISTS (
         SELECT 1
         FROM nombramiento n
@@ -297,7 +314,7 @@ END
 GO
 
 -- ============================================================
--- TRIGGER: VIGENCIA / VERSIONADO AUTOMÁTICO
+-- TRIGGER: VIGENCIA / VERSIONADO AUTOMÁTICO (SEMANA 2)
 -- ============================================================
 
 GO
@@ -311,12 +328,14 @@ BEGIN
     DECLARE @id_vigente INT = (SELECT TOP 1 id_estado_vigencia FROM catalogo_estado_vigencia WHERE nombre = 'Vigente');
     DECLARE @id_historica INT = (SELECT TOP 1 id_estado_vigencia FROM catalogo_estado_vigencia WHERE nombre = 'Histórica');
 
+    -- Si no existen en catálogo, error claro
     IF (@id_vigente IS NULL OR @id_historica IS NULL)
     BEGIN
         RAISERROR('Faltan valores en catalogo_estado_vigencia: debe incluir Vigente e Histórica.', 16, 1);
         RETURN;
     END
 
+    -- 1) Cerrar la versión vigente anterior (si aplica) antes de insertar, para no chocar con el índice único
     UPDATE prev
         SET prev.fecha_fin_vigencia = DATEADD(DAY, -1, ins.fecha_inicio_vigencia),
             prev.id_estado_vigencia = @id_historica
@@ -326,6 +345,7 @@ BEGIN
      AND prev.numero_etiqueta = ins.numero_etiqueta
      AND prev.fecha_fin_vigencia IS NULL;
 
+    -- 2) Insertar los nuevos registros como Vigentes si fecha_fin_vigencia viene NULL
     INSERT INTO elemento_normativo
         (id_reglamento, id_elemento_padre, id_nivel_reglamento, numero_etiqueta,
          contenido_texto, orden, fecha_inicio_vigencia, fecha_fin_vigencia, id_estado_vigencia)
@@ -344,7 +364,7 @@ END
 GO
 
 -- ============================================================
--- TRIGGERS: AUDITORÍA
+-- TRIGGERS: AUDITORÍA (SEMANA 2)
 -- ============================================================
 
 GO
@@ -354,20 +374,30 @@ AFTER INSERT, UPDATE, DELETE
 AS
 BEGIN
     SET NOCOUNT ON;
+
     DECLARE @id_usuario INT = TRY_CAST(SESSION_CONTEXT(N'id_usuario') AS INT);
 
     IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'UPDATE', 'asambleista', CAST(i.asambleista_id AS NVARCHAR(50)),
-               CONCAT('cedula=', i.cedula, '; nombre=', i.nombre) FROM inserted i;
+               CONCAT('cedula=', i.cedula, '; nombre=', i.nombre)
+        FROM inserted i;
+    END
     ELSE IF EXISTS (SELECT 1 FROM inserted)
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'INSERT', 'asambleista', CAST(i.asambleista_id AS NVARCHAR(50)),
-               CONCAT('cedula=', i.cedula, '; nombre=', i.nombre) FROM inserted i;
+               CONCAT('cedula=', i.cedula, '; nombre=', i.nombre)
+        FROM inserted i;
+    END
     ELSE
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'DELETE', 'asambleista', CAST(d.asambleista_id AS NVARCHAR(50)),
-               CONCAT('cedula=', d.cedula, '; nombre=', d.nombre) FROM deleted d;
+               CONCAT('cedula=', d.cedula, '; nombre=', d.nombre)
+        FROM deleted d;
+    END
 END
 GO
 
@@ -378,20 +408,30 @@ AFTER INSERT, UPDATE, DELETE
 AS
 BEGIN
     SET NOCOUNT ON;
+
     DECLARE @id_usuario INT = TRY_CAST(SESSION_CONTEXT(N'id_usuario') AS INT);
 
     IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'UPDATE', 'nombramiento', CAST(i.id_nombramiento AS NVARCHAR(50)),
-               CONCAT('asambleista_id=', i.asambleista_id, '; sector_id=', i.sector_id, '; estado=', i.estado) FROM inserted i;
+               CONCAT('asambleista_id=', i.asambleista_id, '; sector_id=', i.sector_id, '; estado=', i.estado)
+        FROM inserted i;
+    END
     ELSE IF EXISTS (SELECT 1 FROM inserted)
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'INSERT', 'nombramiento', CAST(i.id_nombramiento AS NVARCHAR(50)),
-               CONCAT('asambleista_id=', i.asambleista_id, '; sector_id=', i.sector_id, '; estado=', i.estado) FROM inserted i;
+               CONCAT('asambleista_id=', i.asambleista_id, '; sector_id=', i.sector_id, '; estado=', i.estado)
+        FROM inserted i;
+    END
     ELSE
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'DELETE', 'nombramiento', CAST(d.id_nombramiento AS NVARCHAR(50)),
-               CONCAT('asambleista_id=', d.asambleista_id, '; sector_id=', d.sector_id, '; estado=', d.estado) FROM deleted d;
+               CONCAT('asambleista_id=', d.asambleista_id, '; sector_id=', d.sector_id, '; estado=', d.estado)
+        FROM deleted d;
+    END
 END
 GO
 
@@ -402,25 +442,35 @@ AFTER INSERT, UPDATE, DELETE
 AS
 BEGIN
     SET NOCOUNT ON;
+
     DECLARE @id_usuario INT = TRY_CAST(SESSION_CONTEXT(N'id_usuario') AS INT);
 
     IF EXISTS (SELECT 1 FROM inserted) AND EXISTS (SELECT 1 FROM deleted)
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'UPDATE', 'elemento_normativo', CAST(i.id_elemento AS NVARCHAR(50)),
-               CONCAT('reglamento=', i.id_reglamento, '; etiqueta=', i.numero_etiqueta) FROM inserted i;
+               CONCAT('reglamento=', i.id_reglamento, '; etiqueta=', i.numero_etiqueta, '; fin=', COALESCE(CONVERT(NVARCHAR(30),i.fecha_fin_vigencia), 'NULL'))
+        FROM inserted i;
+    END
     ELSE IF EXISTS (SELECT 1 FROM inserted)
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'INSERT', 'elemento_normativo', CAST(i.id_elemento AS NVARCHAR(50)),
-               CONCAT('reglamento=', i.id_reglamento, '; etiqueta=', i.numero_etiqueta) FROM inserted i;
+               CONCAT('reglamento=', i.id_reglamento, '; etiqueta=', i.numero_etiqueta)
+        FROM inserted i;
+    END
     ELSE
+    BEGIN
         INSERT INTO sys_log_auditoria (id_usuario, accion, tabla_afectada, registro_id, detalle)
         SELECT @id_usuario, 'DELETE', 'elemento_normativo', CAST(d.id_elemento AS NVARCHAR(50)),
-               CONCAT('reglamento=', d.id_reglamento, '; etiqueta=', d.numero_etiqueta) FROM deleted d;
+               CONCAT('reglamento=', d.id_reglamento, '; etiqueta=', d.numero_etiqueta)
+        FROM deleted d;
+    END
 END
 GO
 
 -- ============================================================
--- DATOS SEMILLA NORMATIVA
+-- DATOS SEMILLA NORMATIVA (SEMANA 2)
 -- ============================================================
 
 INSERT INTO catalogo_estado_vigencia (nombre) VALUES
@@ -432,3 +482,4 @@ INSERT INTO catalogo_nivel_reglamento (nombre) VALUES
 ('Capítulo'),
 ('Artículo'),
 ('Inciso');
+
