@@ -483,3 +483,166 @@ INSERT INTO catalogo_nivel_reglamento (nombre) VALUES
 ('Artículo'),
 ('Inciso');
 
+--Sprint 3 SQL completo (sesiones, votación, certificaciones, quorum)
+--Creación de catalógo de tipo de sesión y modalidad
+CREATE TABLE catalogo_tipo_sesion (
+    id_tipo_sesion INT IDENTITY(1,1) PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE catalogo_tipo_modalidad (
+    id_tipo_modalidad INT IDENTITY(1,1) PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- Creación de tabla de sesiones
+CREATE TABLE sesiones (
+    sesion_id INT IDENTITY(1,1) PRIMARY KEY,
+    fecha DATETIME NOT NULL,
+    id_tipo_sesion INT,
+    id_tipo_modalidad INT,
+    estado VARCHAR(20) DEFAULT 'Activa',
+
+    FOREIGN KEY (id_tipo_sesion)
+        REFERENCES catalogo_tipo_sesion(id_tipo_sesion),
+
+    FOREIGN KEY (id_tipo_modalidad)
+        REFERENCES catalogo_tipo_modalidad(id_tipo_modalidad)
+);
+-- Creación de tabla de asistencia a sesiones plenarias
+CREATE TABLE asistencia_sesion_plenaria (
+    asistencia_id INT IDENTITY(1,1) PRIMARY KEY,
+    sesion_id INT,
+    asambleista_id INT,
+    presente BIT DEFAULT 0,
+
+    FOREIGN KEY (sesion_id)
+        REFERENCES sesiones(sesion_id),
+
+    FOREIGN KEY (asambleista_id)
+        REFERENCES asambleista(asambleista_id)
+);
+
+-- Creación de tabla de votaciones 
+CREATE TABLE punto_agenda (
+    agenda_id INT IDENTITY(1,1) PRIMARY KEY,
+    sesion_id INT,
+    descripcion VARCHAR(255),
+
+    FOREIGN KEY (sesion_id)
+        REFERENCES sesiones(sesion_id)
+);
+-- Creación de tabla de resultados de votación
+CREATE TABLE resolucion (
+    resolucion_id INT IDENTITY(1,1) PRIMARY KEY,
+    agenda_id INT,
+    resultado VARCHAR(20),
+
+    FOREIGN KEY (agenda_id)
+        REFERENCES punto_agenda(agenda_id)
+);
+
+-- Creación de tabla de votos individuales
+CREATE TABLE voto (
+    voto_id INT IDENTITY(1,1) PRIMARY KEY,
+    sesion_id INT,
+    asambleista_id INT,
+    decision VARCHAR(10), -- SI / NO / ABSTENCION
+
+    FOREIGN KEY (sesion_id)
+        REFERENCES sesiones(sesion_id),
+
+    FOREIGN KEY (asambleista_id)
+        REFERENCES asambleista(asambleista_id)
+);
+-- Creación de tabla de control de folios para certificaciones
+CREATE TABLE control_folio (
+    folio_id INT IDENTITY(1,1) PRIMARY KEY,
+    numero_folio INT NOT NULL
+);
+-- Creación de tabla de certificaciones emitidas
+CREATE TABLE certificacion_emitida (
+    certificacion_id INT IDENTITY(1,1) PRIMARY KEY,
+    asambleista_id INT,
+    fecha DATETIME DEFAULT GETDATE(),
+    hash_documento VARCHAR(256),
+    folio INT,
+
+    FOREIGN KEY (asambleista_id)
+        REFERENCES asambleista(asambleista_id)
+);
+-- Creación de tabla de anulaciones de certificaciones
+CREATE TABLE anulacion_certificacion (
+    anulacion_id INT IDENTITY(1,1) PRIMARY KEY,
+    certificacion_id INT,
+    motivo VARCHAR(255),
+
+    FOREIGN KEY (certificacion_id)
+        REFERENCES certificacion_emitida(certificacion_id)
+);
+-- Trigger para evitar eliminación de certificaciones emitidas (no se permite eliminar, solo anular)
+CREATE TRIGGER tg_no_repudio_cert
+ON certificacion_emitida
+INSTEAD OF DELETE
+AS
+BEGIN
+    RAISERROR('No se puede eliminar una certificación emitida.', 16, 1);
+END;
+
+-- Función para validar quórum legal en una sesión plenaria (al menos 50% de asambleístas presentes)
+CREATE FUNCTION validar_quorum_legal (@sesion_id INT)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @total INT;
+    DECLARE @presentes INT;
+
+    SELECT @total = COUNT(*) FROM asambleista;
+    SELECT @presentes = COUNT(*) 
+    FROM asistencia_sesion_plenaria
+    WHERE sesion_id = @sesion_id AND presente = 1;
+
+    IF @presentes >= (@total / 2)
+        RETURN 1;
+
+    RETURN 0;
+END;
+-- Función para calcular resultado de votación en un punto de agenda (mayoría simple)
+CREATE FUNCTION calcular_resultado_votacion (@sesion_id INT)
+RETURNS VARCHAR(20)
+AS
+BEGIN
+    DECLARE @si INT;
+    DECLARE @no INT;
+
+    SELECT @si = COUNT(*) FROM voto 
+    WHERE sesion_id = @sesion_id AND decision = 'SI';
+
+    SELECT @no = COUNT(*) FROM voto 
+    WHERE sesion_id = @sesion_id AND decision = 'NO';
+
+    IF @si > @no
+        RETURN 'APROBADO';
+
+    RETURN 'RECHAZADO';
+END;
+-- Trigger para validar quórum legal antes de registrar votos en una sesión plenaria
+CREATE TRIGGER tg_validar_quorum
+ON voto
+INSTEAD OF INSERT
+AS
+BEGIN
+    DECLARE @sesion_id INT;
+
+    SELECT TOP 1 @sesion_id = sesion_id FROM inserted;
+
+    IF dbo.validar_quorum_legal(@sesion_id) = 0
+    BEGIN
+        RAISERROR('No hay quórum suficiente.', 16, 1);
+        RETURN;
+    END
+
+    INSERT INTO voto (sesion_id, asambleista_id, decision)
+    SELECT sesion_id, asambleista_id, decision FROM inserted;
+END;
+
