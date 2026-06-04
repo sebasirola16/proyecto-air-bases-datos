@@ -42,3 +42,129 @@ Notas:
 - No se generan documentos.
 - El objetivo es permitir visualización básica
   y validación de estructura de datos.
+
+
+
+  CONSULTAS IMPLEMENTADAS:
+------------------------
+Responsable: Danie
+Issue: #2 - Navegación / Trazabilidad
+
+[1] obtenerListadoReglamentos()
+Propósito: Listar todos los reglamentos disponibles en el sistema
+           para el selector del compilador normativo.
+
+SELECT 
+    id_reglamento,
+    nombre_normativa,
+    sigla
+FROM reglamento
+ORDER BY nombre_normativa ASC
+
+
+[2] obtenerElementosPorReglamento(id_reglamento)
+Propósito: Obtener todos los elementos de un reglamento con su
+           nivel jerárquico y estado de vigencia actual.
+
+SELECT 
+    e.id_elemento,
+    e.id_elemento_padre,
+    e.numero_etiqueta,
+    e.contenido_texto,
+    e.orden,
+    e.fecha_inicio_vigencia,
+    e.fecha_fin_vigencia,
+    n.nombre   AS nivel,
+    v.nombre   AS estado_vigencia
+FROM elemento_normativo e
+JOIN catalogo_nivel_reglamento n 
+    ON e.id_nivel_reglamento = n.id_nivel_reglamento
+JOIN catalogo_estado_vigencia v 
+    ON e.id_estado_vigencia = v.id_estado_vigencia
+WHERE e.id_reglamento = @id_reglamento
+ORDER BY e.orden ASC
+
+
+[3] construirArbolNormativo(id_reglamento)
+Propósito: Construir el árbol jerárquico completo de un reglamento
+           usando recursividad (CTE). Solo muestra elementos vigentes.
+           Permite navegar Título > Capítulo > Artículo > Inciso.
+
+WITH ArbolNormativo AS (
+
+    -- Nodo raíz: elementos sin padre (nivel superior)
+    SELECT 
+        e.id_elemento,
+        e.id_elemento_padre,
+        e.numero_etiqueta,
+        e.contenido_texto,
+        e.orden,
+        n.nombre        AS nivel,
+        0               AS profundidad
+    FROM elemento_normativo e
+    JOIN catalogo_nivel_reglamento n 
+        ON e.id_nivel_reglamento = n.id_nivel_reglamento
+    WHERE e.id_reglamento    = @id_reglamento
+      AND e.id_elemento_padre IS NULL
+      AND e.fecha_fin_vigencia IS NULL
+
+    UNION ALL
+
+    -- Nodos hijos: se une recursivamente con su padre
+    SELECT 
+        e.id_elemento,
+        e.id_elemento_padre,
+        e.numero_etiqueta,
+        e.contenido_texto,
+        e.orden,
+        n.nombre        AS nivel,
+        a.profundidad + 1
+    FROM elemento_normativo e
+    JOIN catalogo_nivel_reglamento n 
+        ON e.id_nivel_reglamento = n.id_nivel_reglamento
+    JOIN ArbolNormativo a 
+        ON e.id_elemento_padre = a.id_elemento
+    WHERE e.fecha_fin_vigencia IS NULL
+)
+
+SELECT * FROM ArbolNormativo
+ORDER BY profundidad ASC, orden ASC
+
+
+[4] obtenerArticuloVigente(id_elemento, fecha_consulta)
+Propósito: Obtener el texto exacto de un elemento normativo
+           en una fecha específica. Útil para trazabilidad histórica.
+
+SELECT 
+    e.id_elemento,
+    e.numero_etiqueta,
+    e.contenido_texto,
+    e.fecha_inicio_vigencia,
+    e.fecha_fin_vigencia,
+    n.nombre   AS nivel,
+    v.nombre   AS estado_vigencia
+FROM elemento_normativo e
+JOIN catalogo_nivel_reglamento n 
+    ON e.id_nivel_reglamento = n.id_nivel_reglamento
+JOIN catalogo_estado_vigencia v 
+    ON e.id_estado_vigencia = v.id_estado_vigencia
+WHERE e.id_elemento          = @id_elemento
+  AND e.fecha_inicio_vigencia <= @fecha_consulta
+  AND (e.fecha_fin_vigencia IS NULL 
+       OR e.fecha_fin_vigencia >= @fecha_consulta)
+
+
+[5] contarElementosNormativosPorReglamento(id_reglamento)
+Propósito: Contar cuántos elementos tiene un reglamento por nivel
+           jerárquico. Útil para validar la carga de datos.
+
+SELECT 
+    n.nombre   AS nivel,
+    COUNT(*)   AS total_elementos
+FROM elemento_normativo e
+JOIN catalogo_nivel_reglamento n 
+    ON e.id_nivel_reglamento = n.id_nivel_reglamento
+WHERE e.id_reglamento        = @id_reglamento
+  AND e.fecha_fin_vigencia   IS NULL
+GROUP BY n.nombre
+ORDER BY n.nombre ASC

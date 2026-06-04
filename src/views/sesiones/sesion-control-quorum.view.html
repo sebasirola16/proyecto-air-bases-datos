@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Control de Quórum - Sistema AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+        .navbar { background: #2c3e50; color: white; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+        .navbar a { color: white; text-decoration: none; font-size: 14px; }
+        .navbar a:hover { text-decoration: underline; }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        h1 { color: #2c3e50; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; border: 1px solid #ddd; }
+        .quorum-box { text-align: center; padding: 30px; border-radius: 8px; margin: 20px 0; }
+        .quorum-ok { background: #d4edda; border: 2px solid #28a745; }
+        .quorum-fail { background: #f8d7da; border: 2px solid #dc3545; }
+        .quorum-number { font-size: 48px; font-weight: bold; }
+        .quorum-ok .quorum-number { color: #155724; }
+        .quorum-fail .quorum-number { color: #721c24; }
+        .quorum-label { font-size: 16px; margin-top: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #2c3e50; color: white; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f9f9f9; }
+        .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-presente { background: #d4edda; color: #155724; }
+        .badge-ausente { background: #f8d7da; color: #721c24; }
+        .badge-justificado { background: #fff3cd; color: #856404; }
+        select, input { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-primary { background: #2c3e50; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .notif { padding: 10px 16px; border-radius: 6px; margin: 10px 0; display: none; font-weight: bold; }
+        .notif-ok { background: #d4edda; color: #155724; display: block; }
+        .notif-err { background: #f8d7da; color: #721c24; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <strong>🏛️ Sistema AIR</strong>
+    <a href="../shared/navbar.view.html">Inicio</a>
+    <a href="../asambleistas/asambleista-lista.view.html">Asambleístas</a>
+    <a href="../normativa/reglamento-arbol.view.html">Normativa</a>
+    <a href="votacion-tablero.view.html">Votación</a>
+</div>
+
+<div class="container">
+    <h1>📋 Control de Quórum</h1>
+
+    <div class="card">
+        <h2>Sesión Activa</h2>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <select id="selectSesion">
+                <option value="">-- Seleccione una sesión --</option>
+            </select>
+            <button class="btn-primary" onclick="cargarSesion()">Cargar</button>
+        </div>
+        <div id="notif" class="notif"></div>
+    </div>
+
+    <div id="seccion-quorum" style="display:none">
+        <div class="card">
+            <h2>Estado del Quórum</h2>
+            <div id="quorum-box" class="quorum-box quorum-ok">
+                <div class="quorum-number" id="quorum-numero">0/0</div>
+                <div class="quorum-label" id="quorum-label">Calculando...</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Lista de Asistencia</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Cédula</th>
+                        <th>Nombre</th>
+                        <th>Sector</th>
+                        <th>Estado</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-asistencia"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TOKEN = localStorage.getItem('token') || '';
+
+    async function cargarSesion() {
+        const id = document.getElementById('selectSesion').value;
+        if (!id) return mostrarNotif('Seleccione una sesión', true);
+
+        try {
+            const res = await fetch(`/api/sesiones/${id}/asistencia`, {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            if (!res.ok) return mostrarNotif(data.error, true);
+
+            renderAsistencia(data);
+            document.getElementById('seccion-quorum').style.display = 'block';
+        } catch (err) {
+            mostrarNotif('Error al cargar la sesión', true);
+        }
+    }
+
+    function renderAsistencia(data) {
+        const tbody = document.getElementById('tabla-asistencia');
+        tbody.innerHTML = '';
+        let presentes = 0;
+
+        data.forEach(a => {
+            if (a.estado === 'presente') presentes++;
+            const badgeClass = a.estado === 'presente' ? 'badge-presente' :
+                               a.estado === 'justificado' ? 'badge-justificado' : 'badge-ausente';
+            tbody.innerHTML += `
+                <tr>
+                    <td>${a.cedula}</td>
+                    <td>${a.nombre}</td>
+                    <td>${a.sector}</td>
+                    <td><span class="badge ${badgeClass}">${a.estado.toUpperCase()}</span></td>
+                    <td>
+                        <button class="btn-success" onclick="marcar(${a.id}, 'presente')" style="margin-right:4px">✓ Presente</button>
+                        <button class="btn-danger" onclick="marcar(${a.id}, 'ausente')">✗ Ausente</button>
+                    </td>
+                </tr>`;
+        });
+
+        const total = data.length;
+        const quorumRequerido = Math.ceil(total / 2) + 1;
+        const hayQuorum = presentes >= quorumRequerido;
+
+        document.getElementById('quorum-numero').textContent = `${presentes}/${total}`;
+        document.getElementById('quorum-label').textContent = hayQuorum ?
+            `✅ Quórum alcanzado (se necesitan ${quorumRequerido})` :
+            `❌ Sin quórum (se necesitan ${quorumRequerido}, faltan ${quorumRequerido - presentes})`;
+        document.getElementById('quorum-box').className = `quorum-box ${hayQuorum ? 'quorum-ok' : 'quorum-fail'}`;
+    }
+
+    async function marcar(id, estado) {
+        try {
+            const res = await fetch(`/api/asistencia/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+                body: JSON.stringify({ estado })
+            });
+            if (res.ok) cargarSesion();
+        } catch (err) {
+            mostrarNotif('Error al actualizar asistencia', true);
+        }
+    }
+
+    function mostrarNotif(msg, esError = false) {
+        const el = document.getElementById('notif');
+        el.textContent = msg;
+        el.className = 'notif ' + (esError ? 'notif-err' : 'notif-ok');
+        setTimeout(() => el.className = 'notif', 4000);
+    }
+
+    // Cargar sesiones disponibles
+    async function cargarSesiones() {
+        try {
+            const res = await fetch('/api/sesiones', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            const select = document.getElementById('selectSesion');
+            data.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id_sesion;
+                opt.textContent = `Sesión ${s.id_sesion} — ${s.fecha_hora}`;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('Error cargando sesiones:', err);
+        }
+    }
+
+    cargarSesiones();
+</script>
+</body>
+</html>

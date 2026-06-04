@@ -1,3 +1,63 @@
+MODELO: Asambleista
+===================
+
+Capa: Model
+
 Responsabilidades:
 - Crear asambleísta
 - Editar datos personales
+- Buscar asambleístas por cédula y nombre
+- Obtener vigencia de nombramientos
+
+CONSULTAS IMPLEMENTADAS:
+------------------------
+Responsable: Danie
+Issue: #1 - Buscador y Acceso
+
+[1] buscarPorCedula(cedula)
+Propósito: Buscar un asambleísta por su número de cédula exacta.
+
+SELECT 
+    a.asambleista_id,
+    a.cedula,
+    a.nombre,
+    a.correo_institucional
+FROM asambleista a
+WHERE a.cedula = @cedula
+
+
+[2] buscarPorNombre(nombre)
+Propósito: Búsqueda parcial por nombre para el autocompletado del buscador.
+
+SELECT 
+    a.asambleista_id,
+    a.cedula,
+    a.nombre,
+    a.correo_institucional
+FROM asambleista a
+WHERE a.nombre LIKE '%' + @nombre + '%'
+
+
+[3] obtenerAsambleistaConVigencia(asambleista_id)
+Propósito: Obtener datos completos del asambleísta junto con su 
+           nombramiento activo, sector y puesto actual.
+
+SELECT 
+    a.asambleista_id,
+    a.cedula,
+    a.nombre,
+    a.correo_institucional,
+    n.fecha_inicio,
+    n.fecha_fin,
+    n.estado,
+    cs.nombre        AS sector,
+    cp.nombre_puesto AS puesto
+FROM asambleista a
+LEFT JOIN nombramiento n 
+    ON a.asambleista_id = n.asambleista_id
+LEFT JOIN catalogo_sector cs 
+    ON n.sector_id = cs.id_sector
+LEFT JOIN catalogo_puestos cp 
+    ON n.id_puesto = cp.id_puesto
+WHERE a.asambleista_id = @id
+  AND n.estado = 'activo'
