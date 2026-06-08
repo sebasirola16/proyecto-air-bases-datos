@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - AIR</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 350px;
+        }
+        .login-box h1 {
+            color: #1a3a5c;
+            text-align: center;
+            margin-bottom: 5px;
+            font-size: 22px;
+        }
+        .login-box p {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        .form-grupo {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #1a3a5c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .btn-login:hover {
+            background: #2a5a8c;
+        }
+        .mensaje {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            display: none;
+        }
+        .error { background: #f8d7da; color: #721c24; }
+        .exito { background: #d4edda; color: #155724; }
+    </style>
+</head>
+<body>
+
+<div class="login-box">
+    <h1>AIR - TEC</h1>
+    <p>Sistema de Gestión Normativa</p>
+
+    <div id="mensaje" class="mensaje"></div>
+
+    <div class="form-grupo">
+        <label>Usuario</label>
+        <input type="text" id="username" placeholder="Ingrese su usuario">
+    </div>
+    <div class="form-grupo">
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="Ingrese su contraseña">
+    </div>
+
+    <button class="btn-login" onclick="iniciarSesion()">Ingresar</button>
+</div>
+
+<script>
+    async function iniciarSesion() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        if (!username || !password) {
+            mostrarMensaje('Por favor ingrese usuario y contraseña', false);
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const datos = await res.json();
+
+            if (!res.ok) {
+                mostrarMensaje(datos.error || 'Credenciales incorrectas', false);
+                return;
+            }
+
+            // Guardar sesión
+            sessionStorage.setItem('usuario', JSON.stringify(datos.usuario));
+            mostrarMensaje('Ingreso exitoso, redirigiendo...', true);
+
+            // Redirigir según rol
+            setTimeout(() => {
+                const rol = datos.usuario.rol;
+                if (rol === 'Administrador') {
+                    window.location.href = '/admin/usuarios';
+                } else {
+                    window.location.href = '/asambleistas';
+                }
+            }, 1500);
+
+        } catch (err) {
+            mostrarMensaje('Error de conexión con el servidor', false);
+        }
+    }
+
+    function mostrarMensaje(texto, exito) {
+        const div = document.getElementById('mensaje');
+        div.style.display = 'block';
+        div.className = `mensaje ${exito ? 'exito' : 'error'}`;
+        div.innerText = texto;
+    }
+
+    // Permitir login con Enter
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') iniciarSesion();
+    });
+</script>
+
+</body>
+</html>

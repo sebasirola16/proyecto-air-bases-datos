@@ -16,4 +16,11 @@ Thumbs.db
 
 # IDE
 .vscode/
+<<<<<<< HEAD
 .idea/
+
+# Node
+package-lock.json
+=======
+.idea/
+>>>>>>> origin/main
