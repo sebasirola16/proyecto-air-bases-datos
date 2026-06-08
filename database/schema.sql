@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 -- ============================================================
 -- SCHEMA COMPLETO - SPRINT 2
 -- ============================================================
@@ -139,10 +138,8 @@ INSERT INTO catalogo_puestos (nombre_puesto) VALUES
     ('Representante Suplente'),
     ('Presidente del Directorio'),
     ('Secretario/a de la AIR');
-=======
 -- SCHEMA DE TRABAJO - SPRINT 2
 -- ESTE SCRIPT SE EJECUTA EN AZURE
->>>>>>> origin/main
 
 
 -- ============================================================
@@ -651,9 +648,6 @@ BEGIN
     SELECT sesion_id, asambleista_id, decision FROM inserted;
 END;
 
-<<<<<<< HEAD
-=======
 CREATE UNIQUE INDEX ux_elemento_vigente
 ON elemento_normativo (id_reglamento, numero_etiqueta)
 WHERE fecha_fin_vigencia IS NULL;
->>>>>>> origin/main
