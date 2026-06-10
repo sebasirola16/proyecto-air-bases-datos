@@ -83,9 +83,5 @@ const requireRole = (roleName) => (req, res, next) => {
 
 module.exports = { login, requireAuth, requireRole };
 const express = require('express');
-const { login, requireAuth, requireRole } = require('./src/controllers/AuthController');
 
-app.post('/api/login', login);
 
-// Ejemplo: proteger normativa 
-app.post('/api/normativa/*', requireAuth, requireRole('Secretaría'), handler);
