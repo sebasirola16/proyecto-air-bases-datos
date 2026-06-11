@@ -105,7 +105,7 @@
         }
 
         try {
-            const res = await fetch('/api/auth/login', {
+            const res = await fetch('/api/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password })
@@ -119,16 +119,16 @@
             }
 
             // Guardar sesión
-            sessionStorage.setItem('usuario', JSON.stringify(datos.usuario));
+            sessionStorage.setItem('usuario', JSON.stringify(datos.user));
             mostrarMensaje('Ingreso exitoso, redirigiendo...', true);
 
             // Redirigir según rol
             setTimeout(() => {
-                const rol = datos.usuario.rol;
+                const rol = datos.user.roles[0];
                 if (rol === 'Administrador') {
-                    window.location.href = '/admin/usuarios';
+                    window.location.href = '/admin/usuarios.view.html';
                 } else {
-                    window.location.href = '/asambleistas';
+                    window.location.href = '/asambleistas/asambleista-listado.view.html';
                 }
             }, 1500);
 

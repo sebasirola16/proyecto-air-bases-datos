@@ -66,14 +66,30 @@
         links.innerHTML = '';
 
         // Links disponibles para todos
-        links.innerHTML += `<a href="/asambleistas">Asambleístas</a>`;
-        links.innerHTML += `<a href="/normativa">Normativa</a>`;
+        links.innerHTML += `<a href="/asambleistas/asambleista-lista.view.html">Asambleístas</a>`;
+        links.innerHTML += `<a href="/asambleistas/asambleista-lista.view.html">Asambleístas</a>`;
+        links.innerHTML += `<a href="/asambleistas/asambleista-registro.view.html">Registro Asambleísta</a>`;
+
+        links.innerHTML += `<a href="/normativa/reglamento-arbol.view.html">Normativa</a>`;
+        links.innerHTML += `<a href="/normativa/reglamento-editor.view.html">Editor Normativa</a>`;
+        links.innerHTML += `<a href="/normativa/compilador-viso.view.html">Compilador</a>`;
+
+        links.innerHTML += `<a href="/sesiones/sesion-control-quorum.view.html">Control Quórum</a>`;
+        links.innerHTML += `<a href="/sesiones/votacion-tablero.view.html">Votaciones</a>`;
+
+        links.innerHTML += `<a href="/certificaciones/atestados-solicitud.view.html">Certificaciones</a>`;
+        links.innerHTML += `<a href="/certificaciones/certificado-final.view.html">Certificado Final</a>`;
+
+        links.innerHTML += `<a href="/comisiones/comision-lista.view.html">Comisiones</a>`;
+
+        links.innerHTML += `<a href="/admin/usuarios.view.html">Usuarios</a>`;
+        links.innerHTML += `<a href="/admin/bitacora.view.html">Bitácora</a>`;
 
         // Solo admin ve el panel de administración
         if (rol === 'Administrador') {
-            links.innerHTML += `<a href="/admin/usuarios">Admin</a>`;
-            links.innerHTML += `<a href="/admin/bitacora">Bitácora</a>`;
-        }
+            links.innerHTML += `<a href="/admin/usuarios.view.html">Usuarios</a>`;
+            links.innerHTML += `<a href="/admin/bitacora.view.html">Bitácora</a>`;
+            }
     }
 
     function cerrarSesion() {

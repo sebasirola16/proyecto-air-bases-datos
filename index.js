@@ -53,4 +53,13 @@ app.get('/api/sectores', SecretariaController.listarSectores);
 app.use(express.static(path.join(__dirname, 'src', 'views')));
 
 const PORT = process.env.PORT || 3000;
+
+// servir archivos estáticos
+app.use(express.static(path.join(__dirname, 'src/views')));
+
+// ruta principal
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'src/views/shared/login.view.html'));
+});
+
 app.listen(PORT, () => console.log(`Servidor AIR corriendo en puerto ${PORT}`));

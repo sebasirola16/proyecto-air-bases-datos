@@ -1,10 +1,10 @@
 const sql = require('mssql');
 
 const config = {
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  server: process.env.DB_SERVER,
-  database: process.env.DB_NAME,
+  user: 'admin_air@server-air-proyecto-sebastianirola-danielhernandez-juanmedina', // ✅ tu usuario de Azure
+  password: 'Proyecto02', // ✅ tu contraseña real
+  server: 'server-air-proyecto-sebastianirola-danielhernandez-juanmedina.database.windows.net', // ✅ tu server real
+  database: 'air_proyecto_final', // ✅ nombre de tu BD
   options: {
     encrypt: true,
     trustServerCertificate: false
@@ -18,16 +18,16 @@ const conectar = async () => {
   try {
     if (!pool) {
       pool = await sql.connect(config);
-      console.log('Conectado a la base de datos AIR');
+      console.log('✅ Conectado a la base de datos AIR');
     }
     return pool;
   } catch (err) {
-    console.error('Error de conexión:', err);
+    console.error('❌ Error de conexión:', err);
     throw err;
   }
 };
 
-// Setear contexto de auditoría (para triggers sys_log_auditoria)
+// Contexto para triggers
 const setDbUserContext = async (idUsuario) => {
   if (!pool) await conectar();
   await pool.request()
