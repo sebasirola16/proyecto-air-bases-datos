@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Certificado Final - Sistema AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+        .navbar { background: #1a3a5c; color: white; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+        .navbar strong { font-size: 16px; }
+        .navbar a { color: white; text-decoration: none; font-size: 14px; }
+        .navbar a:hover { text-decoration: underline; }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        h1 { color: #1a3a5c; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; border: 1px solid #ddd; }
+        input, select { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; box-sizing: border-box; margin-top: 4px; }
+        label { font-weight: bold; color: #1a3a5c; display: block; margin-top: 12px; }
+        button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; margin-top: 16px; margin-right: 8px; }
+        .btn-primary { background: #1a3a5c; color: white; }
+        .btn-pdf { background: #dc3545; color: white; }
+        .notif { padding: 10px 16px; border-radius: 6px; margin: 10px 0; display: none; font-weight: bold; }
+        .notif-ok { background: #d4edda; color: #155724; display: block; }
+        .notif-err { background: #f8d7da; color: #721c24; display: block; }
+        .certificado { border: 4px double #1a3a5c; padding: 40px; background: white; text-align: center; }
+        .cert-logo { font-size: 48px; margin-bottom: 8px; }
+        .cert-titulo { font-size: 20px; font-weight: bold; color: #1a3a5c; text-transform: uppercase; letter-spacing: 2px; }
+        .cert-subtitulo { font-size: 13px; color: #666; margin-bottom: 24px; }
+        .cert-cuerpo { font-size: 15px; line-height: 1.8; color: #333; text-align: left; margin: 24px 0; }
+        .cert-firmas { margin-top: 40px; display: flex; justify-content: space-around; }
+        .firma-box { text-align: center; }
+        .firma-linea { border-top: 1px solid #333; width: 180px; margin: 0 auto 8px; }
+        .cert-hash { font-size: 10px; color: #999; margin-top: 20px; word-break: break-all; }
+        @media print {
+            .navbar, .card:first-child, button { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <strong>🏛️ Sistema AIR</strong>
+    <a href="/shared/login.view.html">Inicio</a>
+    <a href="/asambleistas/asambleista-lista.view.html">Asambleístas</a>
+    <a href="/certificaciones/atestados-solicitud.view.html">Atestados</a>
+</div>
+
+<div class="container">
+    <h1>🏅 Certificado Final</h1>
+
+    <div class="card">
+        <h2>Generar Certificado</h2>
+        <label for="inputCedula">Cédula del asambleísta</label>
+        <input type="text" id="inputCedula" placeholder="Ej: 101110111" />
+        <label for="inputMotivo">Motivo del certificado</label>
+        <select id="inputMotivo">
+            <option value="nombramiento">Certificado de Nombramiento</option>
+            <option value="participacion">Certificado de Participación</option>
+            <option value="vigencia">Certificado de Vigencia de Cargo</option>
+        </select>
+        <div>
+            <button class="btn-primary" onclick="generarCertificado()">Generar Certificado</button>
+        </div>
+        <div id="notif" class="notif"></div>
+    </div>
+
+    <div id="seccion-certificado" style="display:none">
+        <div class="certificado" id="certificado-doc">
+            <div class="cert-logo">🏛️</div>
+            <div class="cert-titulo">Instituto Tecnológico de Costa Rica</div>
+            <div class="cert-subtitulo">Asamblea Institucional Representativa</div>
+            <hr>
+            <div class="cert-cuerpo" id="cert-cuerpo"></div>
+            <div class="cert-firmas">
+                <div class="firma-box">
+                    <div class="firma-linea"></div>
+                    <strong>Secretaría AIR</strong>
+                    <div style="font-size:12px;color:#666">Secretaría de la Asamblea</div>
+                </div>
+                <div class="firma-box">
+                    <div class="firma-linea"></div>
+                    <strong>Presidencia AIR</strong>
+                    <div style="font-size:12px;color:#666">Presidente de la Asamblea</div>
+                </div>
+            </div>
+            <div class="cert-hash" id="cert-hash"></div>
+        </div>
+        <button class="btn-pdf" onclick="window.print()" style="margin-top:16px">📥 Imprimir / Guardar PDF</button>
+    </div>
+</div>
+
+<script>
+    const TOKEN = localStorage.getItem('token') || '';
+
+    async function generarCertificado() {
+        const cedula = document.getElementById('inputCedula').value.trim();
+        const motivo = document.getElementById('inputMotivo').value;
+        if (!cedula) return mostrarNotif('Ingrese una cédula', true);
+
+        try {
+            const res = await fetch(`/api/asambleistas/${cedula}`, {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            if (!res.ok || !data) return mostrarNotif('Asambleísta no encontrado', true);
+
+            const asambleista = Array.isArray(data) ? data[0] : data;
+
+            const resNom = await fetch(`/api/asambleistas/${asambleista.asambleista_id}/nombramientos`, {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const nombramientos = await resNom.json();
+            const nomActivo = nombramientos?.find(n => n.estado?.toLowerCase() === 'activo');
+
+            const fecha = new Date().toLocaleDateString('es-CR', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+
+            let cuerpo = '';
+            if (motivo === 'nombramiento') {
+                cuerpo = `<p>La <strong>Secretaría de la Asamblea Institucional Representativa</strong> del Instituto Tecnológico de Costa Rica, hace constar que:</p>
+                <p><strong>${asambleista.nombre}</strong>, portador(a) de la cédula <strong>${asambleista.cedula}</strong>, ha sido debidamente nombrado(a) como <strong>${nomActivo?.puesto || 'Representante'}</strong> del sector <strong>${nomActivo?.sector || '—'}</strong>, con vigencia a partir del <strong>${nomActivo?.fecha_inicio || '—'}</strong>.</p>
+                <p>Se extiende el presente certificado en San José, Costa Rica, a los <strong>${fecha}</strong>.</p>`;
+            } else if (motivo === 'participacion') {
+                cuerpo = `<p>La <strong>Secretaría de la Asamblea Institucional Representativa</strong> del Instituto Tecnológico de Costa Rica, certifica que:</p>
+                <p><strong>${asambleista.nombre}</strong>, portador(a) de la cédula <strong>${asambleista.cedula}</strong>, ha participado activamente como miembro de la AIR en representación del sector <strong>${nomActivo?.sector || '—'}</strong>.</p>
+                <p>Se extiende el presente certificado en San José, Costa Rica, a los <strong>${fecha}</strong>.</p>`;
+            } else {
+                cuerpo = `<p>La <strong>Secretaría de la Asamblea Institucional Representativa</strong> del Instituto Tecnológico de Costa Rica, certifica que:</p>
+                <p><strong>${asambleista.nombre}</strong>, portador(a) de la cédula <strong>${asambleista.cedula}</strong>, ostenta el cargo de <strong>${nomActivo?.puesto || 'Representante'}</strong> del sector <strong>${nomActivo?.sector || '—'}</strong>, cargo que se encuentra <strong>vigente</strong> a la fecha.</p>
+                <p>Se extiende el presente certificado en San José, Costa Rica, a los <strong>${fecha}</strong>.</p>`;
+            }
+
+            document.getElementById('cert-cuerpo').innerHTML = cuerpo;
+
+            const textoHash = `${asambleista.cedula}-${asambleista.nombre}-${fecha}-${motivo}`;
+            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(textoHash));
+            const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+            document.getElementById('cert-hash').textContent = `Código de verificación: ${hashHex}`;
+
+            document.getElementById('seccion-certificado').style.display = 'block';
+            mostrarNotif('✅ Certificado generado correctamente');
+        } catch (err) {
+            mostrarNotif('Error al generar certificado', true);
+        }
+    }
+
+    function mostrarNotif(msg, esError = false) {
+        const el = document.getElementById('notif');
+        el.textContent = msg;
+        el.className = 'notif ' + (esError ? 'notif-err' : 'notif-ok');
+        setTimeout(() => el.className = 'notif', 4000);
+    }
+</script>
+</body>
+</html>

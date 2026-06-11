@@ -5,7 +5,7 @@ const { setDbUserContext } = require('../config/db');
 const sessions = new Map();
 
 // =====================
-// LOGIN (VERSIÓN DEMO)
+// LOGIN
 // =====================
 const login = async (req, res) => {
     const { username, password } = req.body || {};
@@ -14,18 +14,25 @@ const login = async (req, res) => {
         return res.status(400).json({ error: 'username y password son obligatorios' });
     }
 
-    // LOGIN SIMPLE PARA DEMO
-    if (username === 'admin' && password === 'admin123') {
-        const token = 'demo-token';
-        sessions.set(token, { id_usuario: 1, roles: ['Administrador'] });
+    // Usuarios demo hardcodeados
+    const usuarios = {
+        'admin': { id: 1, password: 'admin123', roles: ['Administrador', 'Secretaría'] },
+        'secre': { id: 2, password: 'secre123', roles: ['Secretaría'] },
+        'asam':  { id: 3, password: 'asam123',  roles: ['Asambleísta'] }
+    };
 
-        return res.json({
-            token,
-            user: { username: 'admin', roles: ['Administrador'] }
-        });
+    const usuario = usuarios[username];
+    if (!usuario || usuario.password !== password) {
+        return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
-    return res.status(401).json({ error: 'Credenciales inválidas' });
+    const token = crypto.randomBytes(24).toString('hex');
+    sessions.set(token, { id_usuario: usuario.id, roles: usuario.roles });
+
+    return res.json({
+        token,
+        user: { username, roles: usuario.roles }
+    });
 };
 
 // =====================
@@ -41,7 +48,6 @@ const requireAuth = async (req, res, next) => {
 
     req.auth = sessions.get(token);
 
-    // opcional (para triggers, no rompe si falla)
     try {
         await setDbUserContext(req.auth.id_usuario);
     } catch (e) {

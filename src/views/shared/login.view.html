@@ -119,16 +119,17 @@
             }
 
             // Guardar sesión
+            localStorage.setItem('token', datos.token);
             sessionStorage.setItem('usuario', JSON.stringify(datos.user));
             mostrarMensaje('Ingreso exitoso, redirigiendo...', true);
 
             // Redirigir según rol
             setTimeout(() => {
-                const rol = datos.user.roles[0];
-                if (rol === 'Administrador') {
-                    window.location.href = '/admin/usuarios.view.html';
+                const roles = datos.user.roles;
+                if (roles.includes('Secretaría') || roles.includes('Administrador')) {
+                    window.location.href = '/asambleistas/asambleista-lista.view.html';
                 } else {
-                    window.location.href = '/asambleistas/asambleista-listado.view.html';
+                    window.location.href = '/normativa/reglamento-arbol.view.html';
                 }
             }, 1500);
 
@@ -144,7 +145,6 @@
         div.innerText = texto;
     }
 
-    // Permitir login con Enter
     document.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') iniciarSesion();
     });

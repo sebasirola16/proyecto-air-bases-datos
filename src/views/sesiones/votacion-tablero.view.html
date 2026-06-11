@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tablero de Votación - Sistema AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+        .navbar { background: #1a3a5c; color: white; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+        .navbar strong { font-size: 16px; }
+        .navbar a { color: white; text-decoration: none; font-size: 14px; }
+        .navbar a:hover { text-decoration: underline; }
+        .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+        h1 { color: #1a3a5c; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-bottom: 20px; border: 1px solid #ddd; }
+        select, button { padding: 8px 12px; margin: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+        button { cursor: pointer; border: none; font-weight: bold; }
+        .btn-primary { background: #1a3a5c; color: white; }
+        .btn-favor { background: #28a745; color: white; }
+        .btn-contra { background: #dc3545; color: white; }
+        .btn-abstencion { background: #ffc107; color: #333; }
+        .votos-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0; }
+        .voto-box { text-align: center; padding: 24px; border-radius: 8px; }
+        .voto-favor { background: #d4edda; border: 2px solid #28a745; }
+        .voto-contra { background: #f8d7da; border: 2px solid #dc3545; }
+        .voto-abstencion { background: #fff3cd; border: 2px solid #ffc107; }
+        .voto-numero { font-size: 48px; font-weight: bold; }
+        .voto-favor .voto-numero { color: #155724; }
+        .voto-contra .voto-numero { color: #721c24; }
+        .voto-abstencion .voto-numero { color: #856404; }
+        .voto-label { font-size: 14px; font-weight: bold; margin-top: 8px; }
+        .resultado-box { text-align: center; padding: 20px; border-radius: 8px; margin: 16px 0; font-size: 20px; font-weight: bold; }
+        .resultado-aprobado { background: #d4edda; color: #155724; }
+        .resultado-rechazado { background: #f8d7da; color: #721c24; }
+        .resultado-pendiente { background: #e2e3e5; color: #383d41; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #1a3a5c; color: white; padding: 10px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .notif { padding: 10px 16px; border-radius: 6px; margin: 10px 0; display: none; font-weight: bold; }
+        .notif-ok { background: #d4edda; color: #155724; display: block; }
+        .notif-err { background: #f8d7da; color: #721c24; display: block; }
+        .info-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 16px; color: #856404; }
+    </style>
+</head>
+<body>
+
+<div class="navbar">
+    <strong>🏛️ Sistema AIR</strong>
+    <a href="/shared/login.view.html">Inicio</a>
+    <a href="/asambleistas/asambleista-lista.view.html">Asambleístas</a>
+    <a href="/normativa/reglamento-arbol.view.html">Normativa</a>
+    <a href="/sesiones/sesion-control-quorum.view.html">Quórum</a>
+</div>
+
+<div class="container">
+    <h1>🗳️ Tablero de Votación</h1>
+
+    <div class="card">
+        <h2>Resultados en Tiempo Real</h2>
+        <div class="votos-grid">
+            <div class="voto-box voto-favor">
+                <div class="voto-numero" id="count-favor">0</div>
+                <div class="voto-label">✅ A Favor</div>
+            </div>
+            <div class="voto-box voto-contra">
+                <div class="voto-numero" id="count-contra">0</div>
+                <div class="voto-label">❌ En Contra</div>
+            </div>
+            <div class="voto-box voto-abstencion">
+                <div class="voto-numero" id="count-abstencion">0</div>
+                <div class="voto-label">⬜ Abstención</div>
+            </div>
+        </div>
+        <div id="resultado-box" class="resultado-box resultado-pendiente">
+            ⏳ Votación en progreso...
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Registrar Votos</h2>
+        <div id="notif" class="notif"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Sector</th>
+                    <th>Voto actual</th>
+                    <th>Registrar</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-votos">
+                <tr><td colspan="4" style="text-align:center;color:#999">Cargando asambleístas...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="info-box">
+        ⚠️ El módulo de votaciones se conectará con las sesiones en Sprint 3. Esta vista muestra la estructura funcional del tablero.
+    </div>
+</div>
+
+<script>
+    const TOKEN = localStorage.getItem('token') || '';
+    let votos = {};
+
+    async function cargarAsambleistas() {
+        try {
+            const res = await fetch('/api/asambleistas', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            renderTabla(data);
+        } catch (err) {
+            document.getElementById('tabla-votos').innerHTML =
+                '<tr><td colspan="4" style="text-align:center;color:#999">Error al cargar</td></tr>';
+        }
+    }
+
+    function renderTabla(data) {
+        const tbody = document.getElementById('tabla-votos');
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#999">No hay asambleístas</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(a => `
+            <tr id="fila-${a.asambleista_id}">
+                <td>${a.nombre}</td>
+                <td>${a.sector || '—'}</td>
+                <td id="voto-${a.asambleista_id}"><em>Pendiente</em></td>
+                <td>
+                    <button class="btn-favor" onclick="registrarVoto(${a.asambleista_id}, 'favor')">✅ Favor</button>
+                    <button class="btn-contra" onclick="registrarVoto(${a.asambleista_id}, 'contra')">❌ Contra</button>
+                    <button class="btn-abstencion" onclick="registrarVoto(${a.asambleista_id}, 'abstencion')">⬜ Abstención</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function registrarVoto(id, voto) {
+        votos[id] = voto;
+        document.getElementById(`voto-${id}`).innerHTML = `<strong>${voto.toUpperCase()}</strong>`;
+        actualizarContadores();
+        mostrarNotif('✅ Voto registrado');
+    }
+
+    function actualizarContadores() {
+        const favor = Object.values(votos).filter(v => v === 'favor').length;
+        const contra = Object.values(votos).filter(v => v === 'contra').length;
+        const abstencion = Object.values(votos).filter(v => v === 'abstencion').length;
+
+        document.getElementById('count-favor').textContent = favor;
+        document.getElementById('count-contra').textContent = contra;
+        document.getElementById('count-abstencion').textContent = abstencion;
+
+        const total = favor + contra + abstencion;
+        const mayoria = Math.ceil(total / 2) + 1;
+        const resultado = document.getElementById('resultado-box');
+
+        if (total === 0) {
+            resultado.className = 'resultado-box resultado-pendiente';
+            resultado.textContent = '⏳ Votación en progreso...';
+        } else if (favor >= mayoria) {
+            resultado.className = 'resultado-box resultado-aprobado';
+            resultado.textContent = '✅ APROBADO por mayoría';
+        } else if (contra >= mayoria) {
+            resultado.className = 'resultado-box resultado-rechazado';
+            resultado.textContent = '❌ RECHAZADO por mayoría';
+        } else {
+            resultado.className = 'resultado-box resultado-pendiente';
+            resultado.textContent = '⏳ Votación en progreso...';
+        }
+    }
+
+    function mostrarNotif(msg, esError = false) {
+        const el = document.getElementById('notif');
+        el.textContent = msg;
+        el.className = 'notif ' + (esError ? 'notif-err' : 'notif-ok');
+        setTimeout(() => el.className = 'notif', 3000);
+    }
+
+    cargarAsambleistas();
+</script>
+</body>
+</html>

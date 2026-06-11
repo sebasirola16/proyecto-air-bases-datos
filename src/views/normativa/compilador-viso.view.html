@@ -1,12 +1,144 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <title>Compilador Normativo</title>
+    <meta charset="UTF-8">
+    <title>Compilador Normativo - Sistema AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+        .navbar { background: #1a3a5c; color: white; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+        .navbar strong { font-size: 16px; }
+        .navbar a { color: white; text-decoration: none; font-size: 14px; }
+        .navbar a:hover { text-decoration: underline; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        h1 { color: #1a3a5c; }
+        select, button { padding: 8px 12px; margin: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px; }
+        button { background: #1a3a5c; color: white; cursor: pointer; border: none; }
+        button:hover { background: #2a5a8c; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin-top: 20px; border: 1px solid #ddd; }
+        .elemento { margin: 12px 0; padding: 12px; border-left: 4px solid #1a3a5c; background: #f8f9fa; }
+        .elemento-titulo { font-weight: bold; color: #1a3a5c; font-size: 14px; margin-bottom: 4px; }
+        .elemento-texto { color: #333; font-size: 14px; line-height: 1.6; }
+        .elemento-nivel-1 { border-left-color: #1a3a5c; margin-left: 0; }
+        .elemento-nivel-2 { border-left-color: #2980b9; margin-left: 20px; }
+        .elemento-nivel-3 { border-left-color: #27ae60; margin-left: 40px; }
+        .elemento-nivel-4 { border-left-color: #e67e22; margin-left: 60px; }
+        .badge { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 8px; }
+        .badge-vigente { background: #d4edda; color: #155724; }
+        .badge-historica { background: #f8d7da; color: #721c24; }
+        .sin-datos { color: #999; font-style: italic; text-align: center; padding: 20px; }
+        .btn-pdf { background: #dc3545; color: white; }
+        .filtros { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    </style>
 </head>
 <body>
-  <h1>Vista Compilada del Reglamento</h1>
 
-  <p>Funcionalidad disponible en Sprint 3.</p>
+<div class="navbar">
+    <strong>🏛️ Sistema AIR</strong>
+    <a href="/shared/login.view.html">Inicio</a>
+    <a href="/asambleistas/asambleista-lista.view.html">Asambleístas</a>
+    <a href="/normativa/reglamento-arbol.view.html">Árbol Normativo</a>
+    <a href="/certificaciones/atestados-solicitud.view.html">Certificaciones</a>
+</div>
+
+<div class="container">
+    <h1>📚 Compilador Normativo</h1>
+
+    <div class="filtros">
+        <div>
+            <label><strong>Reglamento:</strong></label>
+            <select id="selectReglamento">
+                <option value="">-- Seleccione --</option>
+            </select>
+        </div>
+        <div>
+            <label><strong>Mostrar:</strong></label>
+            <select id="selectFiltro">
+                <option value="vigente">Solo vigentes</option>
+                <option value="todos">Todos (vigentes e históricos)</option>
+            </select>
+        </div>
+        <button onclick="cargarCompilado()">Ver compilado</button>
+        <button class="btn-pdf" onclick="window.print()">📥 Imprimir PDF</button>
+    </div>
+
+    <div id="contenedor-compilado"></div>
+</div>
+
+<script>
+    const TOKEN = localStorage.getItem('token') || '';
+
+    async function cargarReglamentos() {
+        try {
+            const res = await fetch('/api/reglamentos', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const data = await res.json();
+            const select = document.getElementById('selectReglamento');
+            data.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id_reglamento;
+                opt.textContent = `${r.sigla} - ${r.nombre_normativa}`;
+                select.appendChild(opt);
+            });
+        } catch (err) {
+            console.error('Error cargando reglamentos:', err);
+        }
+    }
+
+    async function cargarCompilado() {
+        const id = document.getElementById('selectReglamento').value;
+        const filtro = document.getElementById('selectFiltro').value;
+        if (!id) return alert('Seleccione un reglamento');
+
+        try {
+            const res = await fetch(`/api/reglamentos/${id}/arbol`, {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            const nodos = await res.json();
+
+            const filtrados = filtro === 'vigente'
+                ? nodos.filter(n => n.estado_vigencia?.toLowerCase().includes('vigente'))
+                : nodos;
+
+            renderCompilado(filtrados);
+        } catch (err) {
+            console.error('Error cargando compilado:', err);
+        }
+    }
+
+    function renderCompilado(nodos) {
+        const contenedor = document.getElementById('contenedor-compilado');
+        contenedor.innerHTML = '';
+
+        if (!nodos || nodos.length === 0) {
+            contenedor.innerHTML = '<div class="card"><p class="sin-datos">No hay elementos para mostrar.</p></div>';
+            return;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        nodos.forEach(n => {
+            const nivelClass = `elemento-nivel-${Math.min(n.profundidad + 1, 4)}`;
+            const esVigente = n.estado_vigencia?.toLowerCase().includes('vigente');
+            const badgeClass = esVigente ? 'badge-vigente' : 'badge-historica';
+
+            const div = document.createElement('div');
+            div.className = `elemento ${nivelClass}`;
+            div.innerHTML = `
+                <div class="elemento-titulo">
+                    ${n.nivel} ${n.numero_etiqueta || ''}
+                    <span class="badge ${badgeClass}">${n.estado_vigencia}</span>
+                </div>
+                <div class="elemento-texto">${n.contenido_texto}</div>
+            `;
+            card.appendChild(div);
+        });
+
+        contenedor.appendChild(card);
+    }
+
+    cargarReglamentos();
+</script>
 </body>
 </html>
-``

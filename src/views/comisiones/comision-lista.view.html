@@ -3,34 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <title>Comisiones - Sistema AIR</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f5f5f5; }
+        .navbar { background: #1a3a5c; color: white; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+        .navbar strong { font-size: 16px; }
+        .navbar a { color: white; text-decoration: none; font-size: 14px; }
+        .navbar a:hover { text-decoration: underline; }
+        .container { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+        h1 { color: #1a3a5c; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        input[type="text"] { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; width: 280px; }
+        button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .btn-primary { background: #1a3a5c; color: white; }
+        .btn-info { background: #17a2b8; color: white; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        th { background: #1a3a5c; color: white; padding: 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f9f9f9; }
+        .sin-datos { text-align: center; color: #999; font-style: italic; padding: 20px; }
+        .info-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 16px; margin-top: 20px; color: #856404; }
+    </style>
 </head>
 <body>
-    <h1>Gestión de Comisiones</h1>
 
-    <section id="buscador-comisiones">
-        <input 
-            type="text" 
-            id="input-buscar-comision" 
-            placeholder="Buscar comisión por nombre..."
-        />
-        <button id="btn-buscar">Buscar</button>
-    </section>
+<div class="navbar">
+    <strong>🏛️ Sistema AIR</strong>
+    <a href="/shared/login.view.html">Inicio</a>
+    <a href="/asambleistas/asambleista-lista.view.html">Asambleístas</a>
+    <a href="/normativa/reglamento-arbol.view.html">Normativa</a>
+    <a href="/certificaciones/atestados-solicitud.view.html">Certificaciones</a>
+</div>
 
-    <section id="tabla-comisiones">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Nombre</th>
-                    <th>Tipo</th>
-                    <th>Integrantes</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="resultado-comisiones">
-                <!-- Se llena dinámicamente en Sprint 3 -->
-            </tbody>
-        </table>
-    </section>
+<div class="container">
+    <h1>🏢 Gestión de Comisiones</h1>
+
+    <div class="top-bar">
+        <input type="text" id="input-buscar-comision" placeholder="Buscar comisión por nombre..." oninput="filtrar()" />
+        <button class="btn-primary" onclick="cargarComisiones()">🔄 Actualizar</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Integrantes</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="resultado-comisiones">
+            <tr><td colspan="5" class="sin-datos">Cargando...</td></tr>
+        </tbody>
+    </table>
+
+    <div class="info-box">
+        ⚠️ Las tablas de comisiones se implementan en Sprint 3. Esta vista muestra la estructura base lista para conectarse con los datos.
+    </div>
+</div>
+
+<script>
+    const TOKEN = localStorage.getItem('token') || '';
+    let todas = [];
+
+    async function cargarComisiones() {
+        try {
+            const res = await fetch('/api/comisiones', {
+                headers: { 'Authorization': 'Bearer ' + TOKEN }
+            });
+            if (!res.ok) throw new Error('Sin datos');
+            const data = await res.json();
+            todas = data;
+            renderTabla(todas);
+        } catch (err) {
+            document.getElementById('resultado-comisiones').innerHTML =
+                '<tr><td colspan="5" class="sin-datos">No hay comisiones registradas aún.</td></tr>';
+        }
+    }
+
+    function renderTabla(data) {
+        const tbody = document.getElementById('resultado-comisiones');
+        if (!data || data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="sin-datos">No hay comisiones registradas.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(c => `
+            <tr>
+                <td>${c.id_comision}</td>
+                <td>${c.nombre_comision}</td>
+                <td>${c.tipo || '—'}</td>
+                <td>${c.total_integrantes || 0}</td>
+                <td><button class="btn-info">Ver</button></td>
+            </tr>
+        `).join('');
+    }
+
+    function filtrar() {
+        const texto = document.getElementById('input-buscar-comision').value.toLowerCase();
+        const filtradas = todas.filter(c => c.nombre_comision?.toLowerCase().includes(texto));
+        renderTabla(filtradas);
+    }
+
+    cargarComisiones();
+</script>
 </body>
 </html>
