@@ -8,58 +8,71 @@ app.use(express.json());
 // --- DB ---
 const { conectar } = require('./src/config/db');
 
-// --- Controllers existentes ---
+// --- Controllers ---
 const SecretariaController = require('./src/controllers/SecretariaController');
+const LegislativoController = require('./src/controllers/LegislativoController');
+const ComisionesController = require('./src/controllers/ComisionesController');
+const SesionController = require('./src/controllers/SesionController');
+const VotacionController = require('./src/controllers/VotacionController');
+const ReporteController = require('./src/controllers/ReporteController');
 
-// --- Auth (A2) ---
+// --- Auth ---
 const { login, requireAuth, requireRole } = require('./src/controllers/AuthController');
 
 // ======== Health check ========
 app.get('/health', async (req, res) => {
-  await conectar();
-  res.json({ ok: true });
+    await conectar();
+    res.json({ ok: true });
 });
 
 // ======== LOGIN ========
 app.post('/api/login', login);
 
-// ======== API ASAMBLEISTAS (ya lo usan tus views) ========
+// ======== API ASAMBLEISTAS ========
 app.get('/api/asambleistas', SecretariaController.listarAsambleistas);
 app.get('/api/asambleistas/:cedula', SecretariaController.obtenerPorCedula);
 app.post('/api/asambleistas', SecretariaController.registrarAsambleista);
 app.put('/api/asambleistas/:id', SecretariaController.editarAsambleista);
-
 app.get('/api/asambleistas/:id/nombramientos', SecretariaController.listarNombramientos);
 app.post('/api/nombramientos', SecretariaController.registrarNombramiento);
-
 app.get('/api/sectores', SecretariaController.listarSectores);
 
-// ======== API NORMATIVA (placeholder para Persona B) ========
-// Nota: Persona B va a crear LegislativoController.js real.
-// Aquí dejamos la protección RBAC lista desde ya:
-// - Secretaría: puede insertar/editar
-// - Asambleísta: solo lectura
-// (Rúbrica RBAC Semana 2) [1](https://estudianteccr-my.sharepoint.com/personal/s_irola_1_estudiantec_cr/_layouts/15/Doc.aspx?sourcedoc=%7B75504972-80B9-4486-8B18-4664454F8A61%7D&file=Divisi%C3%B3n.docx&action=default&mobileredirect=true)
+// ======== API NORMATIVA ========
+app.get('/api/reglamentos', LegislativoController.listarReglamentos);
+app.get('/api/reglamentos/:id/arbol', LegislativoController.verArbol);
+app.post('/api/reglamentos', requireAuth, requireRole('Secretaría'), LegislativoController.crearNuevoReglamento);
+app.post('/api/reglamentos/:id/elementos', requireAuth, requireRole('Secretaría'), LegislativoController.agregarElemento);
+app.post('/api/reglamentos/:id/version', requireAuth, requireRole('Secretaría'), LegislativoController.publicarVersion);
+app.get('/api/normativa/niveles', LegislativoController.listarNiveles);
+app.get('/api/normativa/estados', LegislativoController.listarEstados);
 
-// Ejemplo de endpoints futuros (se habilitan cuando Persona B tenga el controller):
-// const LegislativoController = require('./src/controllers/LegislativoController');
-// app.get('/api/normativa/arbol/:id_reglamento', requireAuth, LegislativoController.obtenerArbol);
-// app.post('/api/normativa/elemento', requireAuth, requireRole('Secretaría'), LegislativoController.crearElemento);
-// app.post('/api/normativa/publicar', requireAuth, requireRole('Secretaría'), LegislativoController.publicarVersion);
+// ======== API COMISIONES ========
+if (ComisionesController.listarComisiones) {
+    app.get('/api/comisiones', ComisionesController.listarComisiones);
+}
 
-// ======== Servir vistas HTML como estáticos (para demo rápida) ========
-// Ajustá la carpeta si tu ruta real es diferente.
-// En tu repo, las vistas aparecen bajo "Views/Asambleistas..." etc. [1](https://estudianteccr-my.sharepoint.com/personal/s_irola_1_estudiantec_cr/_layouts/15/Doc.aspx?sourcedoc=%7B75504972-80B9-4486-8B18-4664454F8A61%7D&file=Divisi%C3%B3n.docx&action=default&mobileredirect=true)
+// ======== API SESIONES ========
+if (SesionController.listarSesiones) {
+    app.get('/api/sesiones', SesionController.listarSesiones);
+}
+if (SesionController.obtenerAsistencia) {
+    app.get('/api/sesiones/:id/asistencia', SesionController.obtenerAsistencia);
+}
+
+// ======== API VOTACIONES ========
+if (VotacionController.obtenerVotacion) {
+    app.get('/api/sesiones/:id/votaciones', VotacionController.obtenerVotacion);
+}
+if (VotacionController.registrarVoto) {
+    app.put('/api/votaciones/:id', VotacionController.registrarVoto);
+}
+
+// ======== Servir vistas HTML ========
 app.use(express.static(path.join(__dirname, 'src', 'views')));
 
-const PORT = process.env.PORT || 3000;
-
-// servir archivos estáticos
-app.use(express.static(path.join(__dirname, 'src/views')));
-
-// ruta principal
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'src/views/shared/login.view.html'));
 });
 
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor AIR corriendo en puerto ${PORT}`));
