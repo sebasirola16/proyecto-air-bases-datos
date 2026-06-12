@@ -1,10 +1,10 @@
 const sql = require('mssql');
 
 const config = {
-  user: 'admin_air@server-air-proyecto-sebastianirola-danielhernandez-juanmedina', // ✅ tu usuario de Azure
-  password: 'Proyecto02', // ✅ tu contraseña real
-  server: 'server-air-proyecto-sebastianirola-danielhernandez-juanmedina.database.windows.net', // ✅ tu server real
-  database: 'air_proyecto_final', // ✅ nombre de tu BD
+  user: 'admin_air',
+  password: 'Proyecto02',
+  server: 'server-air-proyecto-sebastianirola-danielhernandez-juanmedina.database.windows.net',
+  database: 'air_proyecto2',
   options: {
     encrypt: true,
     trustServerCertificate: false
@@ -17,7 +17,7 @@ let pool = null;
 const conectar = async () => {
   try {
     if (!pool) {
-      pool = await sql.connect(config);
+      pool = await new sql.ConnectionPool(config).connect();
       console.log('✅ Conectado a la base de datos AIR');
     }
     return pool;
