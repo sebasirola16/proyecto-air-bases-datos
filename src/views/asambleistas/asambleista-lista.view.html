@@ -89,7 +89,7 @@
                 <td>${a.cedula}</td>
                 <td>${a.nombre}</td>
                 <td>${a.sector || '—'}</td>
-                <td><span class="badge ${a.estado?.toLowerCase() === 'activo' ? 'badge-vigente' : 'badge-inactivo'}">${a.estado?.toUpperCase() || 'SIN NOMBRAMIENTO'}</span></td>
+                <td><span class="badge ${a.estado_nombramiento?.toLowerCase() === 'activo' ? 'badge-vigente' : 'badge-inactivo'}">${a.estado_nombramiento?.toUpperCase() || 'SIN NOMBRAMIENTO'}</span></td>
                 <td><button class="btn-info" onclick="ver('${a.cedula}')">Ver</button></td>
             </tr>
         `).join('');

@@ -24,6 +24,7 @@
         .cert-logo { font-size: 48px; margin-bottom: 8px; }
         .cert-titulo { font-size: 20px; font-weight: bold; color: #1a3a5c; text-transform: uppercase; letter-spacing: 2px; }
         .cert-subtitulo { font-size: 13px; color: #666; margin-bottom: 24px; }
+        .cert-folio { font-size: 14px; font-weight: bold; color: #1a3a5c; margin-bottom: 16px; }
         .cert-cuerpo { font-size: 15px; line-height: 1.8; color: #333; text-align: left; margin: 24px 0; }
         .cert-firmas { margin-top: 40px; display: flex; justify-content: space-around; }
         .firma-box { text-align: center; }
@@ -67,6 +68,7 @@
             <div class="cert-logo">🏛️</div>
             <div class="cert-titulo">Instituto Tecnológico de Costa Rica</div>
             <div class="cert-subtitulo">Asamblea Institucional Representativa</div>
+            <div class="cert-folio" id="cert-folio"></div>
             <hr>
             <div class="cert-cuerpo" id="cert-cuerpo"></div>
             <div class="cert-firmas">
@@ -96,6 +98,7 @@
         if (!cedula) return mostrarNotif('Ingrese una cédula', true);
 
         try {
+            // 1. Buscar el asambleísta por cédula
             const res = await fetch(`/api/asambleistas/${cedula}`, {
                 headers: { 'Authorization': 'Bearer ' + TOKEN }
             });
@@ -104,12 +107,27 @@
 
             const asambleista = Array.isArray(data) ? data[0] : data;
 
+            // 2. Traer sus nombramientos (para el cuerpo del certificado)
             const resNom = await fetch(`/api/asambleistas/${asambleista.asambleista_id}/nombramientos`, {
                 headers: { 'Authorization': 'Bearer ' + TOKEN }
             });
             const nombramientos = await resNom.json();
             const nomActivo = nombramientos?.find(n => n.estado?.toLowerCase() === 'activo');
 
+            // 3. EMITIR la certificación en el backend (genera folio + hash + registra en BD)
+            const resEmitir = await fetch('/api/certificaciones/emitir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+                body: JSON.stringify({
+                    id_asambleista: asambleista.asambleista_id,
+                    cedula: asambleista.cedula,
+                    usuario_secretaria: 'secre'
+                })
+            });
+            const emision = await resEmitir.json();
+            if (!resEmitir.ok) return mostrarNotif(emision.error || 'Error al emitir certificación', true);
+
+            // 4. Armar el cuerpo del certificado
             const fecha = new Date().toLocaleDateString('es-CR', {
                 year: 'numeric', month: 'long', day: 'numeric'
             });
@@ -129,16 +147,15 @@
                 <p>Se extiende el presente certificado en San José, Costa Rica, a los <strong>${fecha}</strong>.</p>`;
             }
 
+            // 5. Mostrar folio, cuerpo y hash REALES del backend
+            document.getElementById('cert-folio').textContent = `Folio: ${emision.folio}`;
             document.getElementById('cert-cuerpo').innerHTML = cuerpo;
-
-            const textoHash = `${asambleista.cedula}-${asambleista.nombre}-${fecha}-${motivo}`;
-            const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(textoHash));
-            const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-            document.getElementById('cert-hash').textContent = `Código de verificación: ${hashHex}`;
+            document.getElementById('cert-hash').textContent = `Código de verificación (SHA-256): ${emision.hash}`;
 
             document.getElementById('seccion-certificado').style.display = 'block';
-            mostrarNotif('✅ Certificado generado correctamente');
+            mostrarNotif('✅ Certificado emitido y registrado correctamente');
         } catch (err) {
+            console.error(err);
             mostrarNotif('Error al generar certificado', true);
         }
     }

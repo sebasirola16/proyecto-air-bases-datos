@@ -7,6 +7,7 @@ const listarAsambleistas = async (req, res) => {
         const asambleistas = await Asambleista.listarAsambleistas();
         res.json(asambleistas);
     } catch (err) {
+        console.error('listarAsambleistas:', err);
         res.status(500).json({ error: 'Error al listar asambleistas' });
     }
 };

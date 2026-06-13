@@ -38,7 +38,7 @@
         .notif { padding: 10px 16px; border-radius: 6px; margin: 10px 0; display: none; font-weight: bold; }
         .notif-ok { background: #d4edda; color: #155724; display: block; }
         .notif-err { background: #f8d7da; color: #721c24; display: block; }
-        .info-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 16px; color: #856404; }
+        label { font-weight: bold; color: #1a3a5c; }
     </style>
 </head>
 <body>
@@ -53,6 +53,24 @@
 
 <div class="container">
     <h1>🗳️ Tablero de Votación</h1>
+
+    <div class="card">
+        <h2>Configurar Votación</h2>
+        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+            <label>Sesión:
+                <select id="selectSesion"><option value="">-- Seleccione --</option></select>
+            </label>
+            <label>Propuesta:
+                <select id="selectPropuesta"><option value="">-- Seleccione --</option></select>
+            </label>
+            <label>Tipo de mayoría:
+                <select id="selectMayoria">
+                    <option value="SIMPLE">Simple</option>
+                    <option value="CALIFICADA">Calificada (66%)</option>
+                </select>
+            </label>
+        </div>
+    </div>
 
     <div class="card">
         <h2>Resultados en Tiempo Real</h2>
@@ -73,11 +91,14 @@
         <div id="resultado-box" class="resultado-box resultado-pendiente">
             ⏳ Votación en progreso...
         </div>
+        <div style="text-align:center">
+            <button class="btn-primary" onclick="cerrarVotacion()">🔒 Cerrar y registrar votación</button>
+        </div>
+        <div id="notif" class="notif"></div>
     </div>
 
     <div class="card">
         <h2>Registrar Votos</h2>
-        <div id="notif" class="notif"></div>
         <table>
             <thead>
                 <tr>
@@ -91,10 +112,6 @@
                 <tr><td colspan="4" style="text-align:center;color:#999">Cargando asambleístas...</td></tr>
             </tbody>
         </table>
-    </div>
-
-    <div class="info-box">
-        ⚠️ El módulo de votaciones se conectará con las sesiones en Sprint 3. Esta vista muestra la estructura funcional del tablero.
     </div>
 </div>
 
@@ -113,6 +130,34 @@
             document.getElementById('tabla-votos').innerHTML =
                 '<tr><td colspan="4" style="text-align:center;color:#999">Error al cargar</td></tr>';
         }
+    }
+
+    async function cargarSesiones() {
+        try {
+            const res = await fetch('/api/sesiones', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+            const data = await res.json();
+            const sel = document.getElementById('selectSesion');
+            data.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.sesion_id;
+                opt.textContent = `Sesión ${s.numero_sesion || s.sesion_id}`;
+                sel.appendChild(opt);
+            });
+        } catch (err) { console.error(err); }
+    }
+
+    async function cargarPropuestas() {
+        try {
+            const res = await fetch('/api/propuestas', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+            const data = await res.json();
+            const sel = document.getElementById('selectPropuesta');
+            data.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id_propuesta;
+                opt.textContent = `${p.codigo_air || ''} ${p.titulo}`;
+                sel.appendChild(opt);
+            });
+        } catch (err) { console.error(err); }
     }
 
     function renderTabla(data) {
@@ -139,7 +184,6 @@
         votos[id] = voto;
         document.getElementById(`voto-${id}`).innerHTML = `<strong>${voto.toUpperCase()}</strong>`;
         actualizarContadores();
-        mostrarNotif('✅ Voto registrado');
     }
 
     function actualizarContadores() {
@@ -170,14 +214,53 @@
         }
     }
 
+    // Cierra la votación y la registra en el backend
+    async function cerrarVotacion() {
+        const id_sesion = document.getElementById('selectSesion').value;
+        const id_propuesta = document.getElementById('selectPropuesta').value;
+        const tipo_mayoria = document.getElementById('selectMayoria').value;
+
+        if (!id_sesion || !id_propuesta) {
+            return mostrarNotif('Seleccione una sesión y una propuesta', true);
+        }
+
+        const votos_favor = Object.values(votos).filter(v => v === 'favor').length;
+        const votos_contra = Object.values(votos).filter(v => v === 'contra').length;
+        const abstenciones = Object.values(votos).filter(v => v === 'abstencion').length;
+
+        if (votos_favor + votos_contra + abstenciones === 0) {
+            return mostrarNotif('No hay votos registrados', true);
+        }
+
+        try {
+            const res = await fetch('/api/votaciones', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN },
+                body: JSON.stringify({
+                    id_sesion, id_propuesta,
+                    votos_favor, votos_contra, abstenciones, tipo_mayoria
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) return mostrarNotif(data.error || 'Error al registrar votación', true);
+
+            const r = data.resultado;
+            mostrarNotif(`✅ Votación registrada y guardada — Resultado: ${r.resultado}`);
+        } catch (err) {
+            mostrarNotif('Error al registrar votación', true);
+        }
+    }
+
     function mostrarNotif(msg, esError = false) {
         const el = document.getElementById('notif');
         el.textContent = msg;
         el.className = 'notif ' + (esError ? 'notif-err' : 'notif-ok');
-        setTimeout(() => el.className = 'notif', 3000);
+        setTimeout(() => el.className = 'notif', 5000);
     }
 
     cargarAsambleistas();
+    cargarSesiones();
+    cargarPropuestas();
 </script>
 </body>
 </html>

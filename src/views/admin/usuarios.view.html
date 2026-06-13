@@ -70,9 +70,9 @@
                 <label>Rol *</label>
                 <select id="rol">
                     <option value="">Seleccione un rol</option>
-                    <option value="Administrador">Administrador</option>
-                    <option value="Secretaría AIR">Secretaría AIR</option>
-                    <option value="Asambleísta">Asambleísta</option>
+                    <option value="1">Administrador</option>
+                    <option value="2">Secretaría</option>
+                    <option value="3">Asambleísta</option>
                 </select>
             </div>
             <button class="btn btn-guardar" onclick="crearUsuario()">Guardar</button>
@@ -88,11 +88,16 @@
                 const cuerpo = document.getElementById('cuerpo');
                 cuerpo.innerHTML = '';
                 datos.forEach(u => {
-                    const rolBadge = u.rol === 'Administrador'
-                        ? `<span class="badge-admin">${u.rol}</span>`
-                        : u.rol === 'Secretaría AIR'
-                        ? `<span class="badge-secretaria">${u.rol}</span>`
-                        : `<span class="badge-asambleista">${u.rol}</span>`;
+                    let rolBadge;
+                    if (u.rol === 'Administrador') {
+                        rolBadge = `<span class="badge-admin">${u.rol}</span>`;
+                    } else if (u.rol === 'Secretaría') {
+                        rolBadge = `<span class="badge-secretaria">${u.rol}</span>`;
+                    } else if (u.rol === 'Asambleísta') {
+                        rolBadge = `<span class="badge-asambleista">${u.rol}</span>`;
+                    } else {
+                        rolBadge = `<span class="badge-asambleista">${u.rol || 'Sin rol'}</span>`;
+                    }
                     cuerpo.innerHTML += `
                         <tr>
                             <td>${u.username}</td>

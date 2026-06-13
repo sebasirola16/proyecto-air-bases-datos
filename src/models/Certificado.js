@@ -2,99 +2,97 @@ const { sql, conectar } = require('../config/db');
 
 // Obtener historial completo de un asambleísta para certificación
 const obtenerHistorialAsambleista = async (asambleista_id) => {
-    await conectar();
-
-    // Datos personales y nombramientos
-    const datosResult = await sql.query`
-        SELECT 
-            a.asambleista_id,
-            a.cedula,
-            a.nombre,
-            a.correo_institucional,
-            n.fecha_inicio,
-            n.fecha_fin,
-            n.estado as estado_nombramiento,
-            s.nombre as sector
-        FROM asambleista a
-        LEFT JOIN nombramiento n ON a.asambleista_id = n.asambleista_id
-        LEFT JOIN catalogo_sector s ON n.sector_id = s.id_sector
-        WHERE a.asambleista_id = ${asambleista_id}
-        ORDER BY n.fecha_inicio DESC
-    `;
-
-    // Asistencia a sesiones plenarias
-    const asistenciaResult = await sql.query`
-        SELECT 
-            COUNT(*) as total_sesiones,
-            SUM(CASE WHEN cat.nombre = 'Presente' THEN 1 ELSE 0 END) as sesiones_asistidas
-        FROM asistencia_sesion_plenaria asp
-        JOIN sesiones s ON asp.id_sesion = s.id_sesion
-        JOIN catalogo_asistencia_sesion_comision cat 
-            ON asp.id_estado_asistencia = cat.id_estado_asistencia
-        WHERE asp.id_asambleista = ${asambleista_id}
-    `;
-
-    return {
-        datos: datosResult.recordset,
-        asistencia: asistenciaResult.recordset[0]
-    };
+    const pool = await conectar();
+    const result = await pool.request()
+        .input('asambleista_id', sql.Int, asambleista_id)
+        .query(`
+            SELECT
+                a.asambleista_id,
+                a.cedula,
+                a.nombre,
+                a.correo_institucional,
+                n.fecha_inicio,
+                n.fecha_fin,
+                n.estado as estado_nombramiento,
+                s.nombre as sector
+            FROM asambleista a
+            LEFT JOIN nombramiento n ON a.asambleista_id = n.asambleista_id
+            LEFT JOIN catalogo_sector s ON n.sector_id = s.id_sector
+            WHERE a.asambleista_id = @asambleista_id
+            ORDER BY n.fecha_inicio DESC
+        `);
+    return { datos: result.recordset };
 };
 
-// Generar folio único para certificación
+// Generar folio único DAIR-XXX-AAAA (contador simple en control_folio)
 const generarFolio = async () => {
-    await conectar();
+    const pool = await conectar();
     const anio = new Date().getFullYear();
 
-    // Obtener y actualizar el último número de folio
-    const result = await sql.query`
-        UPDATE control_folio
-        SET ultimo_numero = ultimo_numero + 1,
-            fecha_actualizacion = GETDATE()
-        OUTPUT INSERTED.ultimo_numero
-        WHERE año = ${anio}
-    `;
+    // Ver si ya existe una fila de contador
+    const existe = await pool.request().query(`
+        SELECT TOP 1 folio_id, numero_folio
+        FROM control_folio
+        ORDER BY folio_id ASC
+    `);
 
-    // Si no existe el registro para este año, crearlo
-    if (result.recordset.length === 0) {
-        await sql.query`
-            INSERT INTO control_folio (año, ultimo_numero, fecha_actualizacion)
-            VALUES (${anio}, 1, GETDATE())
-        `;
-        return `DAIR-001-${anio}`;
+    let numero;
+    if (existe.recordset.length === 0) {
+        // No hay contador todavía: crear la primera fila
+        await pool.request().query(`
+            INSERT INTO control_folio (numero_folio) VALUES (1)
+        `);
+        numero = 1;
+    } else {
+        // Incrementar el contador existente
+        const folio_id = existe.recordset[0].folio_id;
+        const result = await pool.request()
+            .input('folio_id', sql.Int, folio_id)
+            .query(`
+                UPDATE control_folio
+                SET numero_folio = numero_folio + 1
+                OUTPUT INSERTED.numero_folio
+                WHERE folio_id = @folio_id
+            `);
+        numero = result.recordset[0].numero_folio;
     }
 
-    const numero = result.recordset[0].ultimo_numero;
     const numeroFormateado = String(numero).padStart(3, '0');
     return `DAIR-${numeroFormateado}-${anio}`;
 };
 
 // Registrar certificación emitida
-const registrarCertificacion = async (id_asambleista, folio_unico, hash_seguridad, usuario_secretaria) => {
-    await conectar();
-    await sql.query`
-        INSERT INTO certificacion_emitida 
-            (id_asambleista, folio_unico, hash_seguridad, fecha_emision, usuario_secretaria)
-        VALUES 
-            (${id_asambleista}, ${folio_unico}, ${hash_seguridad}, GETDATE(), ${usuario_secretaria})
-    `;
+const registrarCertificacion = async (asambleista_id, folio, hash_documento, usuario_secretaria) => {
+    const pool = await conectar();
+    await pool.request()
+        .input('asambleista_id',     sql.Int,      asambleista_id)
+        .input('folio',              sql.NVarChar, folio)
+        .input('hash_documento',     sql.NVarChar, hash_documento)
+        .input('usuario_secretaria', sql.NVarChar, usuario_secretaria)
+        .query(`
+            INSERT INTO certificacion_emitida
+                (asambleista_id, folio, hash_documento, fecha, usuario_secretaria)
+            VALUES
+                (@asambleista_id, @folio, @hash_documento, GETDATE(), @usuario_secretaria)
+        `);
 };
 
 // Obtener certificaciones emitidas
 const listarCertificaciones = async () => {
-    await conectar();
-    const result = await sql.query`
-        SELECT 
-            ce.id_certificacion,
-            ce.folio_unico,
-            ce.hash_seguridad,
-            ce.fecha_emision,
+    const pool = await conectar();
+    const result = await pool.request().query(`
+        SELECT
+            ce.certificacion_id,
+            ce.folio,
+            ce.hash_documento,
+            ce.fecha,
             ce.usuario_secretaria,
             a.nombre as asambleista,
             a.cedula
         FROM certificacion_emitida ce
-        JOIN asambleista a ON ce.id_asambleista = a.asambleista_id
-        ORDER BY ce.fecha_emision DESC
-    `;
+        JOIN asambleista a ON ce.asambleista_id = a.asambleista_id
+        ORDER BY ce.fecha DESC
+    `);
     return result.recordset;
 };
 

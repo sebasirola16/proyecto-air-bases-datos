@@ -17,7 +17,12 @@ let pool = null;
 const conectar = async () => {
   try {
     if (!pool) {
-      pool = await new sql.ConnectionPool(config).connect();
+      try {
+        await sql.close();
+      } catch (e) {
+        // ignorar si no había conexión previa
+      }
+      pool = await sql.connect(config);
       console.log('✅ Conectado a la base de datos AIR');
     }
     return pool;
